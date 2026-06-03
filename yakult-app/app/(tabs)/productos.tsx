@@ -4,6 +4,8 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput,
 import { useFocusEffect } from 'expo-router';
 import { ProductosDB } from '../../services/db';
 import { confirmar } from '../../utils/confirmar';
+// 1. Importamos el AppHeader
+import AppHeader from '../../components/AppHeader';
 
 type Producto = { id: number; nombre: string; sku: string; precio: number; stock: number };
 type Vista    = 'lista' | 'agregar' | 'editar';
@@ -150,12 +152,16 @@ export default function ProductosScreen() {
 
   return (
     <View style={s.pantalla}>
-      <View style={s.header}>
-        <Text style={s.headerTitulo}>Productos</Text>
-        <TouchableOpacity style={s.btnHeader} onPress={() => setVista('agregar')}>
-          <Text style={s.btnHeaderTxt}>+ Agregar</Text>
-        </TouchableOpacity>
-      </View>
+      
+      {/* 2. REEMPLAZO DEL HEADER AQUÍ */}
+      <AppHeader 
+        titulo="Productos"
+        derecha={
+          <TouchableOpacity style={s.btnHeader} onPress={() => setVista('agregar')}>
+            <Text style={s.btnHeaderTxt}>+ Agregar</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {cargando ? <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#E63946" />
       : (

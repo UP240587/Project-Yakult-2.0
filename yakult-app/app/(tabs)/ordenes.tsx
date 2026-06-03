@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity,
          StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { OrdenesDB, ClientesDB, ProductosDB } from '../../services/db';
+import AppHeader from '../../components/AppHeader';
 
 type Tab = 'historial' | 'nueva' | 'notificaciones';
 const COLOR_ESTADO: Record<string, string> = {
@@ -85,9 +86,14 @@ export default function OrdenesScreen() {
 
   return (
     <View style={s.pantalla}>
-      <View style={s.header}>
-        <Text style={s.headerTitulo}>Órdenes</Text>
-      </View>
+      <AppHeader 
+        titulo="Órdenes"
+        derecha={
+          <TouchableOpacity style={s.btnHeader} onPress={() => setTab('nueva')}>
+            <Text style={s.btnHeaderTxt}>+ Nueva</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={s.tabs}>
         {(['historial', 'nueva', 'notificaciones'] as Tab[]).map(t => (
@@ -108,16 +114,18 @@ export default function OrdenesScreen() {
                 ? <Text style={s.vacio}>Sin órdenes. Crea una.</Text>
                 : ordenes.map((o: any) => (
                   <TouchableOpacity key={o.id} style={s.tarjeta} onPress={() => cambiarEstado(o)}>
-                    <View style={s.ordenTop}>
-                      <Text style={s.ordenId}>#{o.id} · {o.clienteNombre}</Text>
-                      <Text style={[s.estado, { color: COLOR_ESTADO[o.estado] }]}>{o.estado}</Text>
-                    </View>
-                    <Text style={s.ordenItems}>
-                      {o.items?.map((i: any) => `${i.nombre} x${i.cantidad}`).join(', ')}
-                    </Text>
-                    <View style={s.ordenBottom}>
-                      <Text style={s.ordenFecha}>{o.fecha} · Toca para cambiar estado</Text>
-                      <Text style={s.ordenTotal}>${o.total}</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={s.ordenTop}>
+                        <Text style={s.ordenId}>#{o.id} · {o.clienteNombre}</Text>
+                        <Text style={[s.estado, { color: COLOR_ESTADO[o.estado] }]}>{o.estado}</Text>
+                      </View>
+                      <Text style={s.ordenItems}>
+                        {o.items?.map((i: any) => `${i.nombre} x${i.cantidad}`).join(', ')}
+                      </Text>
+                      <View style={s.ordenBottom}>
+                        <Text style={s.ordenFecha}>{o.fecha} · Toca para cambiar estado</Text>
+                        <Text style={s.ordenTotal}>${o.total}</Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 ))
@@ -194,8 +202,8 @@ export default function OrdenesScreen() {
 
 const s = StyleSheet.create({
   pantalla:      { flex: 1, backgroundColor: '#F2F2F2' },
-  header:        { backgroundColor: '#FFF', paddingTop: 52, paddingBottom: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
-  headerTitulo:  { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  btnHeader:     { backgroundColor: '#E63946', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
+  btnHeaderTxt:  { color: '#FFF', fontWeight: '600', fontSize: 13 },
   tabs:          { flexDirection: 'row', backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
   tabBtn:        { flex: 1, paddingVertical: 12, alignItems: 'center' },
   tabActivo:     { borderBottomWidth: 2, borderBottomColor: '#E63946' },

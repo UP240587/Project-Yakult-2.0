@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { ProductosDB, ClientesDB, OrdenesDB } from '../../services/db';
+import AppHeader from '../../components/AppHeader';
 
 export default function DashboardScreen() {
   const [stats, setStats]     = useState({ productos: 0, clientes: 0, ordenes: 0, stock: 0 });
@@ -40,10 +41,11 @@ export default function DashboardScreen() {
 
   return (
     <View style={s.pantalla}>
-      <View style={s.header}>
-        <Text style={s.logo}>Yakult</Text>
-        <Text style={s.headerSub}>Distribuidor Aguascalientes</Text>
-      </View>
+      <AppHeader 
+        titulo="Yakult" 
+        subtitulo="Distribuidor Aguascalientes" 
+        colorFondo="#E63946" 
+      />
 
       {cargando ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#E63946" />
@@ -84,9 +86,6 @@ export default function DashboardScreen() {
 
 const s = StyleSheet.create({
   pantalla:   { flex: 1, backgroundColor: '#F2F2F2' },
-  header:     { backgroundColor: '#E63946', paddingTop: 52, paddingBottom: 16, paddingHorizontal: 20 },
-  logo:       { fontSize: 26, fontWeight: '700', color: '#FFF' },
-  headerSub:  { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   contenido:  { padding: 16, gap: 12 },
   seccion:    { fontSize: 15, fontWeight: '600', color: '#1A1A1A', marginTop: 4 },
   grid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

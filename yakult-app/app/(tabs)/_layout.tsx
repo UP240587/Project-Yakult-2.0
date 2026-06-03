@@ -1,47 +1,41 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Tabs, Redirect } from 'expo-router';
+import { Text, View, ActivityIndicator } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 
-// ── Para cambiar íconos busca en: icons.expo.fyi ──
-const TABS: {
-  name: string;
-  label: string;
-  icono: keyof typeof Ionicons.glyphMap;
-}[] = [
-  { name: 'index',    label: 'Inicio',   icono: 'home-outline'      },
-  { name: 'ventas',   label: 'Ventas',   icono: 'cart-outline'      },
-  { name: 'reportes', label: 'Reportes', icono: 'bar-chart-outline'  },
-  { name: 'clientes', label: 'Clientes', icono: 'people-outline'    },
-  { name: 'perfil',   label: 'Perfil',   icono: 'person-outline'    },
+const TABS = [
+  { name: 'index',    label: 'Inicio',    icon: '🏠' },
+  { name: 'productos',label: 'Productos', icon: '📦' },
+  { name: 'clientes', label: 'Clientes',  icon: '👥' },
+  { name: 'ordenes',  label: 'Órdenes',   icon: '🛒' },
+  { name: 'perfil',   label: 'Perfil',    icon: '👤' },
 ];
 
 export default function TabLayout() {
+  const { usuario, cargando } = useAuth();
+
+  if (cargando) return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#E63946" />
+    </View>
+  );
+
+  if (!usuario) return <Redirect href="/auth" />;
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#E63946',
-        tabBarInactiveTintColor: '#9E9E9E',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#EBEBEB',
-          height: 60,
-          paddingBottom: 6,
-        },
-      }}
-    >
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarActiveTintColor:   '#E63946',
+      tabBarInactiveTintColor: '#9E9E9E',
+      tabBarStyle: { backgroundColor: '#FFF', borderTopColor: '#EBEBEB', height: 60, paddingBottom: 6 },
+    }}>
       {TABS.map(tab => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.label,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name={tab.icono} size={size} color={color} />
-            ),
-          }}
-        />
+        <Tabs.Screen key={tab.name} name={tab.name} options={{
+          title: tab.label,
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>{tab.icon}</Text>,
+        }} />
       ))}
+      {/* Admin: accesible por router.push pero NO aparece en el tab bar */}
+      <Tabs.Screen name="admin" options={{ href: null }} />
     </Tabs>
   );
 }
