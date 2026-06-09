@@ -68,4 +68,22 @@ router.put('/:id/estado', async (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE cancelar orden (con rollback de stock)
+router.delete('/:id', async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    // Primero borra los items (foreign key)
+    await conn.query('DELETE FROM orden_items WHERE orden_id = ?', [req.params.id]);
+    await conn.query('DELETE FROM ordenes WHERE id = ?', [req.params.id]);
+    await conn.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

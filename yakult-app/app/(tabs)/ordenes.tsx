@@ -4,6 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity,
 import { useFocusEffect } from 'expo-router';
 import { OrdenesDB, ClientesDB, ProductosDB } from '../../services/db';
 import AppHeader from '../../components/AppHeader';
+import { confirmar } from '../../utils/confirmar';
 
 type Tab    = 'historial' | 'nueva' | 'notificaciones';
 type Estado = 'Pendiente' | 'En camino' | 'Entregado';
@@ -49,6 +50,15 @@ export default function OrdenesScreen() {
   const marcarEntregado = async (ordenId: number) => {
     await OrdenesDB.cambiarEstado(ordenId, 'Entregado');
     await cargar();
+  };
+
+   // -- Nuevo -----
+  // Agrega esta función junto a marcarEntregado
+  const eliminarOrden = (o: any) => {
+    confirmar('Eliminar orden', `¿Eliminar la orden #${o.id} de ${o.clienteNombre}?`, async () => {
+      await OrdenesDB.eliminar(o.id);
+      await cargar();
+    });
   };
 
   // ── Avanzar estado (En camino → Entregado) ──────────
@@ -141,6 +151,9 @@ export default function OrdenesScreen() {
                             onPress={() => marcarEntregado(o.id)}
                           >
                             <Text style={s.btnEntregadoTxt}>✓ Marcar Entregado</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={s.btnEliminarOrden} onPress={() => eliminarOrden(o)}>
+                            <Text style={s.btnEliminarOrdenTxt}>🗑️</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -267,6 +280,8 @@ const s = StyleSheet.create({
   btnEnCaminoTxt: { color: '#1565C0', fontWeight: '600', fontSize: 13 },
   btnEntregado:   { flex: 1, backgroundColor: '#E8F5E9', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
   btnEntregadoTxt:{ color: '#2E7D32', fontWeight: '700', fontSize: 13 },
+  btnEliminarOrden:    { backgroundColor: '#FFF0F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  btnEliminarOrdenTxt: { fontSize: 16 },
 
   // ── Nueva orden ──
   chips:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

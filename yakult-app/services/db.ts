@@ -34,6 +34,7 @@ export const OrdenesDB = {
   getAll: () => get('/ordenes'),
   agregar: (o: any) => post('/ordenes', o),
   cambiarEstado: (id: number, estado: string) => put(`/ordenes/${id}/estado`, { estado }),
+  eliminar:      (id: number)                  => del(`/ordenes/${id}`),
 };
 
 export const AuthDB = {

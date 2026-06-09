@@ -104,7 +104,7 @@ export default function AuthScreen() {
           <View style={s.campo}>
             <Text style={s.label}>Correo electrónico</Text>
             <TextInput
-              style={[s.input, errL.correo && s.inputErr]}
+              style={[s.input, errL.correo ? s.inputErr : null]}
               placeholder="correo@ejemplo.com"
               value={lCorreo}
               keyboardType="email-address"
@@ -121,7 +121,7 @@ export default function AuthScreen() {
           {/* Contraseña */}
           <View style={s.campo}>
             <Text style={s.label}>Contraseña</Text>
-            <View style={[s.passWrap, errL.pass && s.inputErr]}>
+            <View style={[s.passWrap, errL.pass ? s.inputErr : null]}>
               <TextInput
                 style={s.passInput}
                 placeholder="••••••••"
@@ -192,7 +192,7 @@ export default function AuthScreen() {
           <View style={s.campo}>
             <Text style={s.label}>Nombre completo</Text>
             <TextInput
-              style={[s.input, errR.nombre && s.inputErr]}
+              style={[s.input, errR.nombre ? s.inputErr : null]}
               placeholder="Juan Pérez"
               value={rNombre}
               onChangeText={v => { setRNombre(v); setErrR(p => ({...p, nombre: ''})); }}
@@ -204,7 +204,7 @@ export default function AuthScreen() {
           <View style={s.campo}>
             <Text style={s.label}>Correo electrónico</Text>
             <TextInput
-              style={[s.input, errR.correo && s.inputErr]}
+              style={[s.input, errR.correo ? s.inputErr : null]}
               placeholder="correo@ejemplo.com"
               value={rCorreo}
               keyboardType="email-address"
@@ -218,7 +218,7 @@ export default function AuthScreen() {
           {/* Contraseña registro */}
           <View style={s.campo}>
             <Text style={s.label}>Contraseña</Text>
-            <View style={[s.passWrap, errR.pass && s.inputErr]}>
+            <View style={[s.passWrap, errR.pass ? s.inputErr : null]}>
               <TextInput
                 style={s.passInput}
                 placeholder="••••••••"
