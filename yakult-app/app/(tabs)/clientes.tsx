@@ -6,6 +6,7 @@ import { ClientesDB } from '../../services/db';
 import { confirmar } from '../../utils/confirmar';
 import AppHeader from '../../components/AppHeader';
 
+
 type Cliente = { id: number; nombre: string; telefono: string; direccion: string; activo: boolean };
 type Filtro  = 'todos' | 'activos' | 'inactivos';
 type Vista   = 'lista' | 'agregar' | 'editar';
@@ -119,7 +120,8 @@ export default function ClientesScreen() {
             <Text style={s.btnHeaderTxt}>+ Agregar</Text>
           </TouchableOpacity>
         }
-      />
+  />
+      
       
       <ScrollView contentContainerStyle={s.form}>
         {CAMPOS.map(c => (
@@ -149,13 +151,14 @@ export default function ClientesScreen() {
   return (
     <View style={s.pantalla}>
 
-      {/* Header */}
-      <View style={s.header}>
-        <Text style={s.headerTitulo}>Clientes</Text>
-        <TouchableOpacity style={s.btnHeader} onPress={() => setVista('agregar')}>
-          <Text style={s.btnHeaderTxt}>+ Agregar</Text>
-        </TouchableOpacity>
-      </View>
+<AppHeader
+  titulo="Clientes"
+  derecha={
+    <TouchableOpacity style={s.btnHeader} onPress={() => setVista('agregar')}>
+      <Text style={s.btnHeaderTxt}>+ Agregar</Text>
+    </TouchableOpacity>
+  }
+/>
 
       {/* Barra de búsqueda y filtros */}
       <View style={s.barraFiltros}>

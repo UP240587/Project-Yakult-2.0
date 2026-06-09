@@ -7,7 +7,6 @@ const TABS = [
   { name: 'productos',label: 'Productos', icon: '📦' },
   { name: 'clientes', label: 'Clientes',  icon: '👥' },
   { name: 'ordenes',  label: 'Órdenes',   icon: '🛒' },
-  { name: 'perfil',   label: 'Perfil',    icon: '👤' },
 ];
 
 export default function TabLayout() {
@@ -34,8 +33,9 @@ export default function TabLayout() {
           tabBarIcon: () => <Text style={{ fontSize: 20 }}>{tab.icon}</Text>,
         }} />
       ))}
-      {/* Admin: accesible por router.push pero NO aparece en el tab bar */}
-      <Tabs.Screen name="admin" options={{ href: null }} />
+      {/* Accesibles via router.push pero ocultos del tab bar */}
+      <Tabs.Screen name="perfil" options={{ href: null }} />
+      <Tabs.Screen name="admin"  options={{ href: null }} />
     </Tabs>
   );
 }

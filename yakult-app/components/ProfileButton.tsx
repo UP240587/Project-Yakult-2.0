@@ -12,6 +12,8 @@ export default function ProfileButton() {
   const inicial  = usuario?.nombre?.[0]?.toUpperCase() ?? '?';
   const esMaster = usuario?.rol === 'Master';
 
+  const navegar = (ruta: any) => { setAbierto(false); router.push(ruta); };
+
   const cerrarSesion = () => {
     setAbierto(false);
     confirmar('Cerrar sesión', '¿Confirmas cerrar sesión?', async () => {
@@ -25,25 +27,21 @@ export default function ProfileButton() {
       Alert.alert('🔒 Acceso restringido', 'Solo los usuarios Master pueden acceder al panel de administración.');
       return;
     }
-    setAbierto(false);
-    router.push('/(tabs)/admin');
+    navegar('/(tabs)/admin');
   };
 
   return (
     <View style={s.container}>
-      {/* Círculo con inicial */}
       <TouchableOpacity style={s.circulo} onPress={() => setAbierto(true)} activeOpacity={0.8}>
         <Text style={s.inicial}>{inicial}</Text>
       </TouchableOpacity>
-      {/* Etiqueta de rol */}
       <Text style={s.rolLabel}>{esMaster ? '⭐ Master' : 'Promotor'}</Text>
 
-      {/* Menú desplegable */}
       <Modal visible={abierto} transparent animationType="fade" onRequestClose={() => setAbierto(false)}>
         <Pressable style={s.overlay} onPress={() => setAbierto(false)}>
           <Pressable style={s.menu} onPress={e => e.stopPropagation()}>
 
-            {/* Info del usuario */}
+            {/* Info usuario */}
             <View style={s.menuHeader}>
               <View style={s.menuAvatar}><Text style={s.menuAvatarTxt}>{inicial}</Text></View>
               <View style={{ flex: 1 }}>
@@ -65,11 +63,18 @@ export default function ProfileButton() {
               </View>
             </View>
 
-            {/* Administrador — con candado si no es Master */}
+            {/* ── Mi Perfil (nuevo) ── */}
+            <TouchableOpacity style={s.item} onPress={() => navegar('/(tabs)/perfil')}>
+              <Text style={s.itemIcono}>🪪</Text>
+              <Text style={s.itemTxt}>Mi Perfil</Text>
+              <Text style={s.chevron}>›</Text>
+            </TouchableOpacity>
+
+            {/* Administrador */}
             <TouchableOpacity style={s.item} onPress={irAdmin}>
               <Text style={s.itemIcono}>{esMaster ? '⚙️' : '🔒'}</Text>
               <Text style={[s.itemTxt, !esMaster && s.itemDeshabilitado]}>Administrador</Text>
-              {!esMaster && <Text style={{ fontSize: 12, color: '#BBBBBB' }}>Solo Masters</Text>}
+              {!esMaster && <Text style={s.lockHint}>Solo Masters</Text>}
             </TouchableOpacity>
 
             {/* Ayuda */}
@@ -114,6 +119,8 @@ const s = StyleSheet.create({
   itemIcono:     { fontSize: 18, width: 24, textAlign: 'center' },
   itemTxt:       { flex: 1, fontSize: 14, color: '#1A1A1A' },
   itemDeshabilitado: { color: '#BBBBBB' },
+  chevron:       { fontSize: 18, color: '#C0C0C0' },
+  lockHint:      { fontSize: 11, color: '#BBBBBB' },
 
   badge:    { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   badgeM:   { backgroundColor: '#FFF3CD' }, badgeMTxt: { color: '#856404' },
