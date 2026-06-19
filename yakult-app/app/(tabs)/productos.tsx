@@ -7,7 +7,7 @@ import { confirmar } from '../../utils/confirmar';
 // 1. Importamos el AppHeader
 import AppHeader from '../../components/AppHeader';
 
-type Producto = { id: number; nombre: string; sku: string; precio: number; stock: number };
+type Producto = { id: number; nombre: string; sku: string; precio: number; stock: number; categoria?: string };
 type Vista    = 'lista' | 'agregar' | 'editar';
 
 // ── Alerta compatible web + nativo ──────────────────────────────────────────
@@ -29,6 +29,10 @@ export default function ProductosScreen() {
   const [sku, setSku]             = useState('');
   const [precio, setPrecio]       = useState('');
   const [stock, setStock]         = useState('');
+  const [categoria, setCategoria] = useState('General');
+
+  useFocusEffect(useCallback(() => { cargar(); }, []));
+
 
   useFocusEffect(useCallback(() => { cargar(); }, []));
 
@@ -42,6 +46,7 @@ export default function ProductosScreen() {
     setEditando(p);
     setNombre(p.nombre); setSku(p.sku);
     setPrecio(String(p.precio)); setStock(String(p.stock));
+    setCategoria(p.categoria || 'General');
     setVista('editar');
   };
 
@@ -49,9 +54,8 @@ export default function ProductosScreen() {
 
   const handlePrecio = (text: string) => {
     const limpio = text.replace(/[^0-9.]/g, '');
-    if (text.length > 0 && limpio.length === 0) {
-      alerta('Campo inválido', 'El precio solo admite números.');
-      return;
+    if (text.length > 0 && text.includes('-')) {
+      alerta('Valor inválido', 'El precio no puede ser negativo.');
     }
     const partes = limpio.split('.');
     if (partes.length > 2) return;
@@ -60,9 +64,8 @@ export default function ProductosScreen() {
 
   const handleStock = (text: string) => {
     const limpio = text.replace(/[^0-9]/g, '');
-    if (text.length > 0 && limpio.length === 0) {
-      alerta('Campo inválido', 'El stock solo admite números enteros.');
-      return;
+    if (text.length > 0 && text.includes('-')) {
+      alerta('Valor inválido', 'El stock no puede ser negativo.');
     }
     setStock(limpio);
   };
@@ -83,9 +86,10 @@ export default function ProductosScreen() {
 
     const precioNum = parseFloat(precio);
     const stockNum  = parseInt(stock, 10);
+    const categoriaFinal = categoria.trim() || 'General';
 
-    if (isNaN(precioNum) || precioNum <= 0) {
-      alerta('Precio inválido', 'Ingresa un precio numérico mayor a 0.'); return;
+    if (isNaN(precioNum) || precioNum < 0) {
+      alerta('Precio inválido', 'Ingresa un precio numérico mayor o igual a 0.'); return;
     }
     if (isNaN(stockNum) || stockNum < 0) {
       alerta('Stock inválido', 'Ingresa un stock numérico igual o mayor a 0.'); return;
@@ -93,9 +97,9 @@ export default function ProductosScreen() {
 
     setGuardando(true);
     if (vista === 'agregar') {
-      await ProductosDB.agregar({ nombre, sku, precio: precioNum, stock: stockNum });
+      await ProductosDB.agregar({ nombre, sku, precio: precioNum, stock: stockNum, categoria: categoriaFinal });
     } else if (editando) {
-      await ProductosDB.editar(editando.id, { nombre, sku, precio: precioNum, stock: stockNum });
+      await ProductosDB.editar(editando.id, { nombre, sku, precio: precioNum, stock: stockNum, categoria: categoriaFinal });
     }
     await cargar();
     resetForm();
@@ -110,13 +114,14 @@ export default function ProductosScreen() {
   };
 
   const resetForm = () => {
-    setNombre(''); setSku(''); setPrecio(''); setStock('');
+    setNombre(''); setSku(''); setPrecio(''); setStock(''); setCategoria('General');
     setEditando(null); setVista('lista');
   };
 
   const CAMPOS = [
     { label: 'Nombre', value: nombre,  set: setNombre,   ph: 'Yakult Original 65ml' },
     { label: 'SKU',    value: sku,     set: setSku,      ph: 'YK-001'               },
+    { label: 'Categoría', value: categoria, set: setCategoria, ph: 'Bebida probiótica' },
     { label: 'Precio', value: precio,  set: handlePrecio, ph: '12.50', kb: 'decimal-pad' as const },
     { label: 'Stock',  value: stock,   set: handleStock,  ph: '100',   kb: 'number-pad'  as const },
   ];
@@ -173,6 +178,7 @@ export default function ProductosScreen() {
                 <View style={s.tarjetaInfo}>
                   <Text style={s.prodNombre}>{p.nombre}</Text>
                   <Text style={s.prodSku}>SKU: {p.sku} · ${p.precio}</Text>
+                  <Text style={s.prodCategoria}>{p.categoria || 'General'}</Text>
                   <Text style={[s.prodStock, p.stock < 50 && { color: '#E63946' }]}>
                     Stock: {p.stock} {p.stock < 50 ? '⚠️' : ''}
                   </Text>
@@ -207,6 +213,7 @@ const s = StyleSheet.create({
   tarjetaInfo:   { flex: 1 },
   prodNombre:    { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
   prodSku:       { fontSize: 12, color: '#9E9E9E', marginTop: 2 },
+  prodCategoria: { fontSize: 11, color: '#1565C0', marginTop: 2, fontWeight: '600' },
   prodStock:     { fontSize: 12, color: '#4CAF50', marginTop: 2, fontWeight: '600' },
   acciones:      { flexDirection: 'row', gap: 8 },
   btnEditar:     { padding: 8, backgroundColor: '#F0F4FF', borderRadius: 8 },

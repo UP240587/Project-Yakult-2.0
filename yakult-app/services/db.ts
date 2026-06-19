@@ -5,15 +5,39 @@
 //https://bchmn5mf-3000.usw3.devtunnels.ms/api
 const BASE = 'http://localhost:3000/api';
 
-const headers = {
-  'Content-Type': 'application/json',
-  'x-github-token': 'anonymous',
+type UsuarioApi = { id: number; nombre?: string; correo?: string; rol?: string } | null;
+
+let usuarioActual: UsuarioApi = null;
+let tokenActual: string | null = null;
+
+export const setAuthUsuario = (usuario: UsuarioApi, token?: string | null) => {
+  usuarioActual = usuario;
+  tokenActual = token ?? null;
 };
 
-const get = (url: string) => fetch(`${BASE}${url}`, { headers }).then(r => r.json());
-const post = (url: string, body: any) => fetch(`${BASE}${url}`, { method: 'POST', headers, body: JSON.stringify(body) }).then(r => r.json());
-const put = (url: string, body: any) => fetch(`${BASE}${url}`, { method: 'PUT', headers, body: JSON.stringify(body) }).then(r => r.json());
-const del = (url: string) => fetch(`${BASE}${url}`, { method: 'DELETE', headers }).then(r => r.json());
+const headers = (): Record<string, string> => ({
+  'Content-Type': 'application/json',
+  'x-github-token': 'anonymous',
+  ...(usuarioActual?.id ? { 'x-user-id': String(usuarioActual.id) } : {}),
+  ...(tokenActual ? { Authorization: `Bearer ${tokenActual}` } : {}),
+});
+
+const leerRespuesta = async (r: Response) => {
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return data?.error ? data : { error: 'Error de comunicación con el servidor.' };
+  return data;
+};
+
+const withAuthQuery = (url: string) => {
+  if (!tokenActual) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${encodeURIComponent(tokenActual)}`;
+};
+
+const get = (url: string) => fetch(`${BASE}${url}`, { headers: headers() }).then(leerRespuesta);
+const post = (url: string, body: any) => fetch(`${BASE}${url}`, { method: 'POST', headers: headers(), body: JSON.stringify(body) }).then(leerRespuesta);
+const put = (url: string, body: any) => fetch(`${BASE}${url}`, { method: 'PUT', headers: headers(), body: JSON.stringify(body) }).then(leerRespuesta);
+const del = (url: string) => fetch(`${BASE}${url}`, { method: 'DELETE', headers: headers() }).then(leerRespuesta);
 
 export const ProductosDB = {
   getAll: () => get('/productos'),
@@ -35,6 +59,17 @@ export const OrdenesDB = {
   agregar: (o: any) => post('/ordenes', o),
   cambiarEstado: (id: number, estado: string) => put(`/ordenes/${id}/estado`, { estado }),
   eliminar:      (id: number)                  => del(`/ordenes/${id}`),
+};
+
+export const ReportesDB = {
+  opciones:  () => get('/reportes/opciones'),
+  generar:   (filtros: any) => post('/reportes/ventas', filtros),
+  historial: () => get('/reportes/historial'),
+  obtener:   (id: number) => get(`/reportes/${id}`),
+  exportUrl: (id: number) =>
+    `${BASE}${withAuthQuery(`/reportes/${id}/export/pdf`)}`,
+  imprimirUrl: (id: number) =>
+    `${BASE}${withAuthQuery(`/reportes/${id}/imprimir`)}`,
 };
 
 export const AuthDB = {

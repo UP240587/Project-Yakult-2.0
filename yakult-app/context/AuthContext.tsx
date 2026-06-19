@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthDB } from '../services/db';
+import { AuthDB, setAuthUsuario } from '../services/db';
 
 export type Usuario = { id: number; nombre: string; correo: string; rol: 'Master' | 'Promotor' };
 
@@ -19,21 +19,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem('yakult_usuario')
-      .then(data => { if (data) setUsuario(JSON.parse(data)); })
+    Promise.all([
+      AsyncStorage.getItem('yakult_usuario'),
+      AsyncStorage.getItem('yakult_token'),
+    ])
+      .then(async ([data, token]) => {
+        if (data && token) {
+          const guardado: Usuario = JSON.parse(data);
+          setUsuario(guardado);
+          setAuthUsuario(guardado, token);
+        } else if (data && !token) {
+          await AsyncStorage.removeItem('yakult_usuario');
+        }
+      })
       .finally(() => setCargando(false));
   }, []);
 
-  const guardar = async (u: Usuario) => {
+  const guardar = async (u: Usuario, token?: string) => {
     setUsuario(u);
+    setAuthUsuario(u, token);
     await AsyncStorage.setItem('yakult_usuario', JSON.stringify(u));
+    if (token) await AsyncStorage.setItem('yakult_token', token);
   };
 
   const login = async (correo: string, contrasena: string) => {
     try {
       const res = await AuthDB.login({ correo, contrasena });
       if (res.error) return { ok: false, error: res.error };
-      await guardar(res.usuario);
+      await guardar(res.usuario, res.token);
       return { ok: true };
     } catch { return { ok: false, error: 'Sin conexión con el servidor.' }; }
   };
@@ -42,13 +55,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await AuthDB.registro({ nombre, correo, contrasena });
       if (res.error) return { ok: false, error: res.error };
-      await guardar(res.usuario);
+      await guardar(res.usuario, res.token);
       return { ok: true };
     } catch { return { ok: false, error: 'Sin conexión con el servidor.' }; }
   };
 
   const logout = async () => {
     await AsyncStorage.removeItem('yakult_usuario');
+    await AsyncStorage.removeItem('yakult_token');
+    setAuthUsuario(null);
     setUsuario(null);
   };
 

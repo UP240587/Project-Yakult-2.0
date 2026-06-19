@@ -4,10 +4,11 @@ const db     = require('../db');
 // GET historial con detalle
 router.get('/', async (req, res) => {
   const [ordenes] = await db.query(`
-    SELECT o.id, c.nombre AS clienteNombre, o.total, o.estado,
+    SELECT o.id, c.nombre AS clienteNombre, u.nombre AS vendedorNombre, o.total, o.estado,
            DATE_FORMAT(o.fecha,'%d %b') AS fecha
     FROM ordenes o
     JOIN clientes c ON c.id = o.cliente_id
+    LEFT JOIN usuarios u ON u.id = o.vendedor_id
     ORDER BY o.fecha DESC
   `);
 
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
 
 // POST crear orden
 router.post('/', async (req, res) => {
-  const { clienteId, items, total } = req.body;
+  const { clienteId, vendedorId = null, items, total } = req.body;
   // items = [{ productoId, cantidad, precio }]
 
   const conn = await db.getConnection();
@@ -35,8 +36,8 @@ router.post('/', async (req, res) => {
     await conn.beginTransaction();
 
     const [r] = await conn.query(
-      'INSERT INTO ordenes (cliente_id, total) VALUES (?,?)',
-      [clienteId, total]
+      'INSERT INTO ordenes (cliente_id, vendedor_id, total) VALUES (?,?,?)',
+      [clienteId, vendedorId, total]
     );
     const ordenId = r.insertId;
 

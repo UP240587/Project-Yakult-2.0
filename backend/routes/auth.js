@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 const bcrypt = require('bcryptjs');
+const { crearToken } = require('../authToken');
 
 // ── Registro ────────────────────────────────────────────
 router.post('/registro', async (req, res) => {
@@ -20,7 +21,8 @@ router.post('/registro', async (req, res) => {
     'INSERT INTO usuarios (nombre, correo, contrasena, rol) VALUES (?,?,?,?)',
     [nombre.trim(), correo.toLowerCase().trim(), hash, rol]
   );
-  res.json({ usuario: { id: r.insertId, nombre: nombre.trim(), correo: correo.toLowerCase().trim(), rol } });
+  const usuario = { id: r.insertId, nombre: nombre.trim(), correo: correo.toLowerCase().trim(), rol };
+  res.json({ usuario, token: crearToken(usuario) });
 });
 
 // ── Login ───────────────────────────────────────────────
@@ -41,7 +43,8 @@ router.post('/login', async (req, res) => {
   if (!valido)
     return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
 
-  res.json({ usuario: { id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol } });
+  const usuario = { id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol };
+  res.json({ usuario, token: crearToken(usuario) });
 });
 
 // ── Listar usuarios (solo Masters) ─────────────────────

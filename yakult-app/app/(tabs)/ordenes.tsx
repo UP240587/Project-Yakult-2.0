@@ -1,13 +1,10 @@
 import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity,
-         StyleSheet, ActivityIndicator, Platform } from 'react-native';
+         StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { OrdenesDB, ClientesDB, ProductosDB } from '../../services/db';
 import AppHeader from '../../components/AppHeader';
 import { confirmar } from '../../utils/confirmar';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { generarReporteOrden, abrirReporte } from '../../services/reportes';
 
 type Tab    = 'historial' | 'nueva' | 'notificaciones';
 type Estado = 'Pendiente' | 'En camino' | 'Entregado';
@@ -25,10 +22,6 @@ export default function OrdenesScreen() {
   const [clienteSel,  setClienteSel]  = useState<any>(null);
   const [cantidades,  setCantidades]  = useState<Record<number, number>>({});
   const [guardando,   setGuardando]   = useState(false);
-  const [generandoPdf, setGenerandoPdf] = useState<number | null>(null);
-
-  const { usuario } = useAuth();
-  const { mostrar } = useToast();
 
   useFocusEffect(useCallback(() => { cargar(); }, []));
 
@@ -42,8 +35,14 @@ export default function OrdenesScreen() {
   };
 
   const cambiarCantidad = (id: number, delta: number) => {
+    const prod = productos.find((p: any) => p.id === id);
+    const maxStock = prod ? prod.stock : 0;
+
     setCantidades(prev => {
-      const nuevo = Math.max(0, (prev[id] ?? 0) + delta);
+      let nuevo = (prev[id] ?? 0) + delta;
+      if (nuevo < 0) nuevo = 0;
+      if (nuevo > maxStock) nuevo = maxStock;
+      
       const copia = { ...prev };
       if (nuevo === 0) delete copia[id]; else copia[id] = nuevo;
       return copia;
@@ -73,25 +72,6 @@ export default function OrdenesScreen() {
     if (o.estado === 'Pendiente')  await OrdenesDB.cambiarEstado(o.id, 'En camino');
     if (o.estado === 'En camino')  await OrdenesDB.cambiarEstado(o.id, 'Entregado');
     await cargar();
-  };
-
-  // ── Generar reporte PDF de la orden ─────────────────
-  const generarPDF = async (o: any) => {
-    if (!usuario) return;
-    try {
-      setGenerandoPdf(o.id);
-      // En web, generarReporteOrden ya abre la ventana de impresión del reporte.
-      // En nativo, abrimos la hoja de compartir tras generarlo.
-      const reporte = await generarReporteOrden(o, usuario);
-      mostrar('Reporte generado y guardado en tu perfil.', 'success');
-      if (Platform.OS !== 'web') {
-        try { await abrirReporte(reporte); } catch {}
-      }
-    } catch (e: any) {
-      mostrar(e?.message ?? 'No se pudo generar el reporte.', 'error');
-    } finally {
-      setGenerandoPdf(null);
-    }
   };
 
   const crearOrden = async () => {
@@ -161,42 +141,28 @@ export default function OrdenesScreen() {
                         <Text style={s.ordenTotal}>${Number(o.total).toFixed(2)}</Text>
                       </View>
 
-                      {/* ── Acciones de la orden ── */}
-                      <View style={s.accionesOrden}>
-                        {o.estado === 'Pendiente' && (
-                          <TouchableOpacity
-                            style={s.btnEnCamino}
-                            onPress={() => avanzarEstado(o)}
-                          >
-                            <Text style={s.btnEnCaminoTxt}>🚚 En camino</Text>
-                          </TouchableOpacity>
-                        )}
-                        {o.estado !== 'Entregado' && (
+                      {/* ── Botón Marcar Entregado (solo si no está entregado) ── */}
+                      {o.estado !== 'Entregado' && (
+                        <View style={s.accionesOrden}>
+                          {o.estado === 'Pendiente' && (
+                            <TouchableOpacity
+                              style={s.btnEnCamino}
+                              onPress={() => avanzarEstado(o)}
+                            >
+                              <Text style={s.btnEnCaminoTxt}>🚚 En camino</Text>
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
                             style={s.btnEntregado}
                             onPress={() => marcarEntregado(o.id)}
                           >
-                            <Text style={s.btnEntregadoTxt}>✓ Entregado</Text>
+                            <Text style={s.btnEntregadoTxt}>✓ Marcar Entregado</Text>
                           </TouchableOpacity>
-                        )}
-
-                        {/* ── Generar PDF (siempre disponible) ── */}
-                        <TouchableOpacity
-                          style={s.btnPDF}
-                          onPress={() => generarPDF(o)}
-                          disabled={generandoPdf === o.id}
-                        >
-                          {generandoPdf === o.id
-                            ? <ActivityIndicator size="small" color="#E63946" />
-                            : <Text style={s.btnPDFTxt}>📄 PDF</Text>}
-                        </TouchableOpacity>
-
-                        {o.estado !== 'Entregado' && (
                           <TouchableOpacity style={s.btnEliminarOrden} onPress={() => eliminarOrden(o)}>
                             <Text style={s.btnEliminarOrdenTxt}>🗑️</Text>
                           </TouchableOpacity>
-                        )}
-                      </View>
+                        </View>
+                      )}
                     </View>
                   ))
                 }
@@ -322,8 +288,6 @@ const s = StyleSheet.create({
   btnEntregadoTxt:{ color: '#2E7D32', fontWeight: '700', fontSize: 13 },
   btnEliminarOrden:    { backgroundColor: '#FFF0F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   btnEliminarOrdenTxt: { fontSize: 16 },
-  btnPDF:         { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E63946', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, justifyContent: 'center', alignItems: 'center', minWidth: 64 },
-  btnPDFTxt:      { color: '#E63946', fontWeight: '700', fontSize: 13 },
 
   // ── Nueva orden ──
   chips:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

@@ -7,6 +7,7 @@ const TABS = [
   { name: 'productos',label: 'Productos', icon: '📦' },
   { name: 'clientes', label: 'Clientes',  icon: '👥' },
   { name: 'ordenes',  label: 'Órdenes',   icon: '🛒' },
+  { name: 'reportes', label: 'Reportes',  icon: '📈' },
 ];
 
 export default function TabLayout() {
@@ -36,6 +37,7 @@ export default function TabLayout() {
       {/* Accesibles via router.push pero ocultos del tab bar */}
       <Tabs.Screen name="perfil" options={{ href: null }} />
       <Tabs.Screen name="admin"  options={{ href: null }} />
+      <Tabs.Screen name="ventas" options={{ href: null }} />
     </Tabs>
   );
 }
