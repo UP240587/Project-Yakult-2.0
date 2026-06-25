@@ -64,7 +64,7 @@ router.put('/usuarios/:id', async (req, res) => {
 // ── Asignar / Quitar Master ─────────────────────────────
 router.put('/usuarios/:id/rol', async (req, res) => {
   const { rol } = req.body;
-  if (!['Master', 'Promotor'].includes(rol))
+  if (!['Master', 'Promotor', 'Repartidor'].includes(rol))
     return res.status(400).json({ error: 'Rol inválido.' });
   await db.query('UPDATE usuarios SET rol=? WHERE id=?', [rol, req.params.id]);
   res.json({ ok: true });

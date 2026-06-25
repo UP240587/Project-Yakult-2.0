@@ -3,10 +3,12 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Platform, Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import AppHeader from '../../components/AppHeader';
 import { ReportesDB } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 type Agrupacion = 'dia' | 'semana' | 'mes' | 'anio';
 type Vista = 'generar' | 'historial';
@@ -43,6 +45,19 @@ type Resultado = {
   generadoPor?: { nombre: string; rol: string };
 };
 
+// ── Paleta centralizada (theme) ──
+const C = {
+  bg: '#F4F5F7',
+  card: '#FFFFFF',
+  primary: '#E63946',
+  primarySoft: '#FDECEE',
+  primaryTint: '#FFF7F8',
+  ink: '#1A1A2E',
+  muted: '#8A8F99',
+  line: '#ECECF1',
+  field: '#F7F8FA',
+};
+
 const AGRUPACIONES: Array<{ key: Agrupacion; label: string }> = [
   { key: 'dia', label: 'Día' },
   { key: 'semana', label: 'Semana' },
@@ -56,6 +71,7 @@ const MESES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 const GRAFICA_COLORES = ['#E63946', '#2A9D8F', '#457B9D', '#F4A261', '#7B61FF', '#6A994E', '#D62828', '#118AB2'];
+const MEDALLAS = ['#F4B400', '#B9C0CC', '#CD7F32'];
 
 const rangoInicial = () => {
   const hoy = new Date();
@@ -102,8 +118,27 @@ const diasCalendario = (mes: string) => {
   });
 };
 
+// ── Componentes modulares reutilizables ──
+const Card = ({ children, style }: { children: React.ReactNode; style?: any }) => (
+  <View style={[s.card, style]}>{children}</View>
+);
+
+const SectionHeader = ({ icon, paso, titulo, right }: { icon: keyof typeof Ionicons.glyphMap; paso?: string; titulo: string; right?: React.ReactNode }) => (
+  <View style={s.sectionHeader}>
+    <View style={s.sectionIcon}>
+      <Ionicons name={icon} size={16} color={C.primary} />
+    </View>
+    <View style={{ flex: 1 }}>
+      {paso ? <Text style={s.sectionPaso}>{paso}</Text> : null}
+      <Text style={s.sectionTitulo}>{titulo}</Text>
+    </View>
+    {right}
+  </View>
+);
+
 export default function ReportesScreen() {
   const { usuario } = useAuth();
+  const { mostrar } = useToast();
   const [vista, setVista] = useState<Vista>('generar');
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
@@ -145,15 +180,25 @@ export default function ReportesScreen() {
     setFiltros((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Cuántos filtros (aparte del rango de fechas) están activos.
+  const filtrosActivos = [filtros.clienteId, filtros.productoId, filtros.categoria, filtros.vendedorId]
+    .filter((v) => v !== null).length;
+
+  const limpiarFiltros = () => {
+    setFiltros((prev) => ({ ...prev, clienteId: null, productoId: null, categoria: null, vendedorId: null }));
+  };
+
   const generar = async () => {
     setGenerando(true);
     setError('');
     const res = await ReportesDB.generar(filtros);
     if (res.error) {
       setError(res.error);
+      mostrar(res.error, 'error');
     } else {
       setResultado(res);
       setVista('generar');
+      mostrar('Reporte generado correctamente', 'success');
       const hist = await ReportesDB.historial();
       if (!hist.error) setHistorial(hist);
     }
@@ -197,6 +242,7 @@ export default function ReportesScreen() {
       setError('Genera o abre un reporte antes de exportar.');
       return;
     }
+    mostrar('Descargando PDF…', 'info');
     abrirUrl(ReportesDB.exportUrl(resultado.id));
   };
 
@@ -205,6 +251,7 @@ export default function ReportesScreen() {
       setError('Genera o abre un reporte antes de imprimir.');
       return;
     }
+    mostrar('Abriendo impresión…', 'info');
     abrirUrl(ReportesDB.imprimirUrl(resultado.id));
   };
 
@@ -238,8 +285,9 @@ export default function ReportesScreen() {
         style={[s.fechaBoton, calendario?.campo === campo && s.fechaBotonActivo]}
         onPress={() => abrirCalendario(campo)}
       >
+        <Ionicons name="calendar-outline" size={15} color={calendario?.campo === campo ? C.primary : C.muted} />
         <Text style={s.fechaBotonTxt}>{filtros[campo]}</Text>
-        <Text style={s.fechaIcono}>▾</Text>
+        <Ionicons name="chevron-down" size={14} color={C.muted} />
       </TouchableOpacity>
     </View>
   );
@@ -255,11 +303,11 @@ export default function ReportesScreen() {
       <View style={s.calendario}>
         <View style={s.calHeader}>
           <TouchableOpacity accessibilityRole="button" style={s.calNav} onPress={() => setCalendario({ ...calendario, mes: moverMes(calendario.mes, -1) })}>
-            <Text style={s.calNavTxt}>‹</Text>
+            <Ionicons name="chevron-back" size={16} color={C.primary} />
           </TouchableOpacity>
           <Text style={s.calTitulo}>{MESES[mm - 1]} {yyyy}</Text>
           <TouchableOpacity accessibilityRole="button" style={s.calNav} onPress={() => setCalendario({ ...calendario, mes: moverMes(calendario.mes, 1) })}>
-            <Text style={s.calNavTxt}>›</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.primary} />
           </TouchableOpacity>
         </View>
 
@@ -292,48 +340,73 @@ export default function ReportesScreen() {
     );
   };
 
+  const RESUMEN_CARDS: Array<{ icon: keyof typeof Ionicons.glyphMap; color: string; valor: (r: Resultado) => string | number; label: string }> = [
+    { icon: 'receipt-outline', color: '#457B9D', valor: (r) => r.resumen.totalVentas, label: 'Ventas' },
+    { icon: 'cube-outline', color: '#2A9D8F', valor: (r) => r.resumen.unidadesVendidas, label: 'Unidades' },
+    { icon: 'cash-outline', color: C.primary, valor: (r) => money(r.resumen.ingresosTotales), label: 'Ingresos' },
+  ];
+
   return (
     <View style={s.pantalla}>
       <AppHeader titulo="Reportes" subtitulo={usuario ? `Sesión: ${usuario.nombre}` : undefined} />
 
-      <View style={s.tabs}>
-        <TouchableOpacity
-          accessibilityRole="tab"
-          accessibilityState={{ selected: vista === 'generar' }}
-          style={[s.tabBtn, vista === 'generar' && s.tabActivo]}
-          onPress={() => setVista('generar')}
-        >
-          <Text style={[s.tabTxt, vista === 'generar' && s.tabTxtActivo]}>Generar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="tab"
-          accessibilityState={{ selected: vista === 'historial' }}
-          style={[s.tabBtn, vista === 'historial' && s.tabActivo]}
-          onPress={() => setVista('historial')}
-        >
-          <Text style={[s.tabTxt, vista === 'historial' && s.tabTxtActivo]}>Historial</Text>
-        </TouchableOpacity>
+      <View style={s.tabsWrap}>
+        <View style={s.tabs}>
+          {(['generar', 'historial'] as Vista[]).map((v) => (
+            <TouchableOpacity
+              key={v}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: vista === v }}
+              style={[s.tabBtn, vista === v && s.tabActivo]}
+              onPress={() => setVista(v)}
+            >
+              <Ionicons
+                name={v === 'generar' ? 'bar-chart-outline' : 'time-outline'}
+                size={15}
+                color={vista === v ? '#FFF' : C.muted}
+              />
+              <Text style={[s.tabTxt, vista === v && s.tabTxtActivo]}>
+                {v === 'generar' ? 'Generar' : 'Historial'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {cargando ? (
-        <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#E63946" />
+        <ActivityIndicator style={{ marginTop: 40 }} size="large" color={C.primary} />
       ) : (
         <>
-          {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
+          {error ? (
+            <View style={s.error}>
+              <Ionicons name="alert-circle" size={16} color="#B71C1C" />
+              <Text accessibilityRole="alert" style={s.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
 
           {vista === 'generar' && (
-            <ScrollView contentContainerStyle={s.contenido}>
-              <View style={s.bloque}>
-                <Text style={s.paso}>1. Rango</Text>
+            <ScrollView contentContainerStyle={s.contenido} showsVerticalScrollIndicator={false}>
+              <Card>
+                <SectionHeader icon="calendar-outline" paso="Paso 1" titulo="Rango de fechas" />
                 <View style={s.fechas}>
                   <FechaBoton campo="fechaInicio" label="Inicio" />
                   <FechaBoton campo="fechaFin" label="Fin" />
                 </View>
                 <MiniCalendario />
-              </View>
+              </Card>
 
-              <View style={s.bloque}>
-                <Text style={s.paso}>2. Filtros</Text>
+              <Card>
+                <SectionHeader
+                  icon="options-outline"
+                  paso="Paso 2"
+                  titulo="Filtros"
+                  right={filtrosActivos > 0 ? (
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Limpiar filtros" style={s.limpiarBtn} onPress={limpiarFiltros}>
+                      <Ionicons name="close-circle" size={14} color={C.primary} />
+                      <Text style={s.limpiarTxt}>Limpiar ({filtrosActivos})</Text>
+                    </TouchableOpacity>
+                  ) : undefined}
+                />
 
                 <Text style={s.label}>Cliente</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
@@ -367,7 +440,7 @@ export default function ReportesScreen() {
                   ))}
                 </ScrollView>
 
-                <Text style={s.label}>Estadísticas</Text>
+                <Text style={s.label}>Agrupar estadísticas por</Text>
                 <View style={s.segmentos}>
                   {AGRUPACIONES.map((a) => (
                     <TouchableOpacity
@@ -381,97 +454,120 @@ export default function ReportesScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
+              </Card>
 
-              <View style={s.bloque}>
-                <Text style={s.paso}>3. Reporte</Text>
+              <Card>
+                <SectionHeader icon="document-text-outline" paso="Paso 3" titulo="Generar reporte" />
                 <TouchableOpacity
                   accessibilityRole="button"
                   style={[s.btnPrimario, generando && s.btnDeshabilitado]}
                   onPress={generar}
                   disabled={generando}
                 >
-                  {generando ? <ActivityIndicator color="#FFF" /> : <Text style={s.btnPrimarioTxt}>Generar reporte</Text>}
+                  {generando ? <ActivityIndicator color="#FFF" /> : (
+                    <>
+                      <Ionicons name="sparkles-outline" size={16} color="#FFF" />
+                      <Text style={s.btnPrimarioTxt}>Generar reporte</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
-
-                {resultado && (
-                  <View style={s.accionesExportar}>
-                    <TouchableOpacity accessibilityRole="button" style={s.btnSecundario} onPress={exportarPdf}>
-                      <Text style={s.btnSecundarioTxt}>Exportar PDF</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity accessibilityRole="button" style={s.btnSecundario} onPress={imprimir}>
-                      <Text style={s.btnSecundarioTxt}>Imprimir</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+              </Card>
 
               {resultado && (
                 <>
-                  <View style={s.resumenGrid}>
-                    <View style={s.resumenCard}>
-                      <Text style={s.resumenValor}>{resultado.resumen.totalVentas}</Text>
-                      <Text style={s.resumenLabel}>Ventas</Text>
+                  <Card>
+                    <SectionHeader icon="share-outline" titulo="Descargar / Imprimir" />
+                    <View style={s.accionesExportar}>
+                      <TouchableOpacity accessibilityRole="button" style={s.btnExportar} onPress={exportarPdf}>
+                        <Ionicons name="download-outline" size={18} color="#FFF" />
+                        <Text style={s.btnExportarTxt}>Descargar PDF</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" style={s.btnSecundario} onPress={imprimir}>
+                        <Ionicons name="print-outline" size={16} color={C.ink} />
+                        <Text style={s.btnSecundarioTxt}>Imprimir</Text>
+                      </TouchableOpacity>
                     </View>
-                    <View style={s.resumenCard}>
-                      <Text style={s.resumenValor}>{resultado.resumen.unidadesVendidas}</Text>
-                      <Text style={s.resumenLabel}>Unidades</Text>
-                    </View>
-                    <View style={s.resumenCard}>
-                      <Text style={s.resumenValor}>{money(resultado.resumen.ingresosTotales)}</Text>
-                      <Text style={s.resumenLabel}>Ingresos</Text>
-                    </View>
-                  </View>
+                  </Card>
 
-                  <Text style={s.seccion}>Ventas por {AGRUPACIONES.find((a) => a.key === resultado.filtros.agrupacion)?.label.toLowerCase()}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.grafica}>
-                    {resultado.estadisticas.length === 0 ? (
-                      <Text style={s.vacio}>Sin datos para graficar.</Text>
-                    ) : resultado.estadisticas.map((item, index) => (
-                      <View key={item.clave} style={s.barraWrap}>
-                        <Text style={[s.barraValor, { color: GRAFICA_COLORES[index % GRAFICA_COLORES.length] }]}>{money(item.ingresos)}</Text>
-                        <View
-                          accessibilityLabel={`${item.etiqueta}: ${money(item.ingresos)}`}
-                          style={[
-                            s.barra,
-                            {
-                              height: Math.max(8, Math.round((item.ingresos / maxIngreso) * 110)),
-                              backgroundColor: GRAFICA_COLORES[index % GRAFICA_COLORES.length],
-                            },
-                          ]}
-                        />
-                        <Text style={s.barraLabel} numberOfLines={1}>{item.etiqueta}</Text>
+                  <View style={s.resumenGrid}>
+                    {RESUMEN_CARDS.map((rc) => (
+                      <View key={rc.label} style={s.resumenCard}>
+                        <View style={[s.resumenIcono, { backgroundColor: `${rc.color}1A` }]}>
+                          <Ionicons name={rc.icon} size={16} color={rc.color} />
+                        </View>
+                        <Text style={[s.resumenValor, { color: rc.color }]} numberOfLines={1} adjustsFontSizeToFit>
+                          {rc.valor(resultado)}
+                        </Text>
+                        <Text style={s.resumenLabel}>{rc.label}</Text>
                       </View>
                     ))}
-                  </ScrollView>
+                  </View>
 
-                  <Text style={s.seccion}>Productos más vendidos</Text>
-                  {resultado.productosMasVendidos.length === 0 ? (
-                    <Text style={s.vacio}>Sin productos vendidos.</Text>
-                  ) : resultado.productosMasVendidos.map((p, index) => (
-                    <View key={p.id} style={s.filaRanking}>
-                      <Text style={s.rankingNumero}>{index + 1}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.rankingNombre}>{p.nombre}</Text>
-                        <Text style={s.rankingMeta}>{p.categoria} · {p.cantidad} unidades</Text>
+                  <Card>
+                    <SectionHeader
+                      icon="trending-up-outline"
+                      titulo={`Ingresos por ${AGRUPACIONES.find((a) => a.key === resultado.filtros.agrupacion)?.label.toLowerCase()}`}
+                    />
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.grafica}>
+                      {resultado.estadisticas.length === 0 ? (
+                        <Text style={s.vacio}>Sin datos para graficar.</Text>
+                      ) : resultado.estadisticas.map((item, index) => (
+                        <View key={item.clave} style={s.barraWrap}>
+                          <Text style={[s.barraValor, { color: GRAFICA_COLORES[index % GRAFICA_COLORES.length] }]}>{money(item.ingresos)}</Text>
+                          <View style={s.barraTrack}>
+                            <View
+                              accessibilityLabel={`${item.etiqueta}: ${money(item.ingresos)}`}
+                              style={[
+                                s.barra,
+                                {
+                                  height: Math.max(8, Math.round((item.ingresos / maxIngreso) * 120)),
+                                  backgroundColor: GRAFICA_COLORES[index % GRAFICA_COLORES.length],
+                                },
+                              ]}
+                            />
+                          </View>
+                          <Text style={s.barraLabel} numberOfLines={1}>{item.etiqueta}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </Card>
+
+                  <Card>
+                    <SectionHeader icon="trophy-outline" titulo="Productos más vendidos" />
+                    {resultado.productosMasVendidos.length === 0 ? (
+                      <Text style={s.vacio}>Sin productos vendidos.</Text>
+                    ) : resultado.productosMasVendidos.map((p, index) => (
+                      <View key={p.id} style={[s.filaRanking, index > 0 && s.filaRankingBorde]}>
+                        <Text style={[s.rankingNumero, index < 3 && { backgroundColor: `${MEDALLAS[index]}22`, color: MEDALLAS[index] }]}>{index + 1}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.rankingNombre} numberOfLines={1}>{p.nombre}</Text>
+                          <Text style={s.rankingMeta}>{p.categoria} · {p.cantidad} unidades</Text>
+                        </View>
+                        <Text style={s.rankingTotal}>{money(p.total)}</Text>
                       </View>
-                      <Text style={s.rankingTotal}>{money(p.total)}</Text>
-                    </View>
-                  ))}
+                    ))}
+                  </Card>
 
-                  <Text style={s.seccion}>Detalle de ventas</Text>
+                  <SectionHeader icon="list-outline" titulo="Detalle de ventas" />
                   {resultado.ventas.length === 0 ? (
-                    <Text style={s.vacio}>Sin ventas para este rango.</Text>
+                    <Card><Text style={s.vacio}>Sin ventas para este rango.</Text></Card>
                   ) : resultado.ventas.map((v) => (
-                    <View key={v.numeroVenta} style={s.ventaCard}>
+                    <Card key={v.numeroVenta} style={s.ventaCard}>
                       <View style={s.ventaTop}>
-                        <Text style={s.ventaId}>#{v.numeroVenta} · {v.cliente}</Text>
+                        <Text style={s.ventaId} numberOfLines={1}>#{v.numeroVenta} · {v.cliente}</Text>
                         <Text style={s.ventaTotal}>{money(v.total)}</Text>
                       </View>
-                      <Text style={s.ventaMeta}>{v.fecha} · {v.vendedor}</Text>
+                      <View style={s.ventaMetaRow}>
+                        <Ionicons name="calendar-clear-outline" size={12} color={C.muted} />
+                        <Text style={s.ventaMeta}>{v.fecha}</Text>
+                        <Ionicons name="person-outline" size={12} color={C.muted} style={{ marginLeft: 8 }} />
+                        <Text style={s.ventaMeta}>{v.vendedor}</Text>
+                      </View>
                       <Text style={s.ventaProductos}>{v.productosVendidos}</Text>
-                      <Text style={s.ventaCantidad}>Cantidad: {v.cantidad}</Text>
-                    </View>
+                      <View style={s.ventaCantidadPill}>
+                        <Text style={s.ventaCantidad}>{v.cantidad} unidades</Text>
+                      </View>
+                    </Card>
                   ))}
                 </>
               )}
@@ -479,9 +575,12 @@ export default function ReportesScreen() {
           )}
 
           {vista === 'historial' && (
-            <ScrollView contentContainerStyle={s.contenido}>
+            <ScrollView contentContainerStyle={s.contenido} showsVerticalScrollIndicator={false}>
               {historial.length === 0 ? (
-                <Text style={s.vacio}>Sin reportes generados.</Text>
+                <Card style={s.vacioCard}>
+                  <Ionicons name="folder-open-outline" size={34} color={C.muted} />
+                  <Text style={s.vacio}>Sin reportes generados.</Text>
+                </Card>
               ) : historial.map((r) => (
                 <TouchableOpacity
                   key={r.id}
@@ -490,14 +589,18 @@ export default function ReportesScreen() {
                   style={s.historialCard}
                   onPress={() => abrirHistorial(r.id)}
                 >
+                  <View style={s.historialIcono}>
+                    <Ionicons name="document-text-outline" size={18} color={C.primary} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.historialTitulo}>{r.nombre}</Text>
+                    <Text style={s.historialTitulo} numberOfLines={1}>{r.nombre}</Text>
                     <Text style={s.historialMeta}>{r.fechaInicio} a {r.fechaFin} · {r.generadoPor}</Text>
                     <Text style={s.historialMeta}>{r.generadoEn}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={s.historialMonto}>{money(r.ingresosTotales)}</Text>
                     <Text style={s.historialVentas}>{r.totalVentas} ventas</Text>
+                    <Ionicons name="chevron-forward" size={16} color={C.muted} style={{ marginTop: 2 }} />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -509,83 +612,121 @@ export default function ReportesScreen() {
   );
 }
 
+// ── Sombra reutilizable (modular) ──
+const sombra = Platform.select({
+  ios: { shadowColor: '#1A1A2E', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+  android: { elevation: 2 },
+  default: {},
+}) as object;
+
 const s = StyleSheet.create({
-  pantalla:       { flex: 1, backgroundColor: '#F2F2F2' },
-  tabs:           { flexDirection: 'row', backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
-  tabBtn:         { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActivo:      { borderBottomWidth: 2, borderBottomColor: '#E63946' },
-  tabTxt:         { fontSize: 12, color: '#777' },
-  tabTxtActivo:   { color: '#E63946', fontWeight: '700' },
-  contenido:      { padding: 16, gap: 12 },
-  bloque:         { backgroundColor: '#FFF', borderRadius: 8, padding: 14, gap: 10, elevation: 1 },
-  paso:           { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
-  label:          { fontSize: 12, color: '#555', fontWeight: '700', marginTop: 2 },
+  pantalla:       { flex: 1, backgroundColor: C.bg },
+
+  tabsWrap:       { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line },
+  tabs:           { flexDirection: 'row', backgroundColor: C.field, borderRadius: 12, padding: 4, gap: 4 },
+  tabBtn:         { flex: 1, paddingVertical: 10, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  tabActivo:      { backgroundColor: C.primary, ...sombra },
+  tabTxt:         { fontSize: 13, color: C.muted, fontWeight: '600' },
+  tabTxtActivo:   { color: '#FFF', fontWeight: '700' },
+
+  contenido:      { padding: 16, gap: 14, paddingBottom: 32 },
+
+  card:           { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12, ...sombra },
+
+  sectionHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sectionIcon:    { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  sectionPaso:    { fontSize: 10, color: C.primary, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  sectionTitulo:  { fontSize: 15, fontWeight: '800', color: C.ink },
+
+  label:          { fontSize: 12, color: C.muted, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.3 },
+
+  limpiarBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.primarySoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  limpiarTxt:     { color: C.primary, fontSize: 11, fontWeight: '800' },
+
   fechas:         { flexDirection: 'row', gap: 10 },
   campoFecha:     { flex: 1, gap: 6 },
-  fechaBoton:     { minHeight: 42, backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#DFDFDF', borderRadius: 8, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  fechaBotonActivo:{ borderColor: '#E63946', backgroundColor: '#FFF7F8' },
-  fechaBotonTxt:  { fontSize: 13, color: '#1A1A1A', fontWeight: '700' },
-  fechaIcono:     { fontSize: 16, color: '#777' },
-  calendario:     { alignSelf: 'center', width: '100%', maxWidth: 280, backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#E4E4E4', borderRadius: 8, padding: 8, gap: 6 },
+  fechaBoton:     { minHeight: 44, backgroundColor: C.field, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fechaBotonActivo:{ borderColor: C.primary, backgroundColor: C.primaryTint },
+  fechaBotonTxt:  { flex: 1, fontSize: 13, color: C.ink, fontWeight: '700' },
+
+  calendario:     { alignSelf: 'center', width: '100%', maxWidth: 300, backgroundColor: C.field, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 10, gap: 8 },
   calHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  calNav:         { width: 28, height: 26, borderRadius: 7, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E6E6E6' },
-  calNavTxt:      { fontSize: 17, color: '#E63946', fontWeight: '800', lineHeight: 19 },
-  calTitulo:      { fontSize: 12, color: '#1A1A1A', fontWeight: '800' },
+  calNav:         { width: 30, height: 30, borderRadius: 9, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line },
+  calTitulo:      { fontSize: 13, color: C.ink, fontWeight: '800' },
   calDias:        { flexDirection: 'row' },
-  calDiaNombre:   { width: `${100 / 7}%`, textAlign: 'center', fontSize: 9, color: '#777', fontWeight: '800' },
+  calDiaNombre:   { width: `${100 / 7}%`, textAlign: 'center', fontSize: 10, color: C.muted, fontWeight: '800' },
   calGrid:        { flexDirection: 'row', flexWrap: 'wrap' },
-  calDia:         { width: `${100 / 7}%`, aspectRatio: 1.35, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
+  calDia:         { width: `${100 / 7}%`, aspectRatio: 1.3, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
   calDiaFuera:    { opacity: 0.45 },
   calDiaDeshabilitado: { opacity: 0.25 },
   calDiaTxtDeshabilitado: { color: '#CCC' },
-  calDiaActivo:   { backgroundColor: '#E63946' },
-  calDiaTxt:      { fontSize: 11, color: '#333', fontWeight: '700' },
+  calDiaActivo:   { backgroundColor: C.primary, ...sombra },
+  calDiaTxt:      { fontSize: 12, color: '#333', fontWeight: '700' },
   calDiaTxtFuera: { color: '#999' },
   calDiaTxtActivo:{ color: '#FFF' },
+
   chips:          { gap: 8, paddingVertical: 2 },
-  chip:           { minWidth: 86, maxWidth: 190, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#E2E2E2' },
+  chip:           { minWidth: 86, maxWidth: 190, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: C.field, borderWidth: 1, borderColor: C.line },
   chipCompacto:   { minWidth: 74 },
-  chipActivo:     { backgroundColor: '#E63946', borderColor: '#E63946' },
-  chipTxt:        { color: '#333', fontSize: 12, textAlign: 'center' },
+  chipActivo:     { backgroundColor: C.primary, borderColor: C.primary, ...sombra },
+  chipTxt:        { color: '#444', fontSize: 12, textAlign: 'center', fontWeight: '600' },
   chipTxtActivo:  { color: '#FFF', fontWeight: '700' },
-  segmentos:      { flexDirection: 'row', backgroundColor: '#F1F1F1', borderRadius: 8, padding: 3 },
-  segmento:       { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  segmentoActivo: { backgroundColor: '#FFF', elevation: 1 },
-  segmentoTxt:    { fontSize: 12, color: '#777' },
-  segmentoTxtActivo:{ color: '#E63946', fontWeight: '700' },
-  btnPrimario:    { backgroundColor: '#E63946', borderRadius: 8, padding: 14, alignItems: 'center' },
+
+  segmentos:      { flexDirection: 'row', backgroundColor: C.field, borderRadius: 12, padding: 4, gap: 4 },
+  segmento:       { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9 },
+  segmentoActivo: { backgroundColor: '#FFF', ...sombra },
+  segmentoTxt:    { fontSize: 12, color: C.muted, fontWeight: '600' },
+  segmentoTxtActivo:{ color: C.primary, fontWeight: '800' },
+
+  btnPrimario:    { backgroundColor: C.primary, borderRadius: 12, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...sombra },
   btnDeshabilitado:{ opacity: 0.6 },
-  btnPrimarioTxt: { color: '#FFF', fontWeight: '700', fontSize: 14 },
-  accionesExportar:{ flexDirection: 'row', gap: 8 },
-  btnSecundario:  { flex: 1, backgroundColor: '#F7F7F7', borderRadius: 8, borderWidth: 1, borderColor: '#E0E0E0', paddingVertical: 10, alignItems: 'center' },
-  btnSecundarioTxt:{ color: '#1A1A1A', fontWeight: '700', fontSize: 12 },
-  error:          { backgroundColor: '#FFEBEE', color: '#B71C1C', padding: 10, marginHorizontal: 16, marginTop: 10, borderRadius: 8, fontSize: 12, fontWeight: '600' },
-  resumenGrid:    { flexDirection: 'row', gap: 8 },
-  resumenCard:    { flex: 1, backgroundColor: '#FFF', borderRadius: 8, padding: 12, alignItems: 'center', elevation: 1 },
-  resumenValor:   { fontSize: 17, fontWeight: '800', color: '#E63946' },
-  resumenLabel:   { fontSize: 11, color: '#777', marginTop: 3 },
-  seccion:        { fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginTop: 8 },
-  grafica:        { backgroundColor: '#FFF', borderRadius: 8, minHeight: 170, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 10, gap: 10, alignItems: 'flex-end' },
-  barraWrap:      { width: 70, alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
-  barra:          { width: 26, borderRadius: 6, backgroundColor: '#2A9D8F' },
-  barraValor:     { fontSize: 9, color: '#555', height: 14 },
-  barraLabel:     { fontSize: 10, color: '#777', width: 68, textAlign: 'center' },
-  filaRanking:    { backgroundColor: '#FFF', borderRadius: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, elevation: 1 },
-  rankingNumero:  { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FDECEE', color: '#E63946', textAlign: 'center', lineHeight: 26, fontWeight: '800' },
-  rankingNombre:  { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
-  rankingMeta:    { fontSize: 11, color: '#777', marginTop: 2 },
-  rankingTotal:   { fontSize: 13, fontWeight: '800', color: '#1A1A1A' },
-  ventaCard:      { backgroundColor: '#FFF', borderRadius: 8, padding: 12, gap: 4, elevation: 1 },
-  ventaTop:       { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  ventaId:        { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
-  ventaTotal:     { fontSize: 13, fontWeight: '800', color: '#E63946' },
-  ventaMeta:      { fontSize: 11, color: '#777' },
-  ventaProductos: { fontSize: 12, color: '#333', lineHeight: 17 },
+  btnPrimarioTxt: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  accionesExportar:{ flexDirection: 'row', gap: 10 },
+  btnExportar:    { flex: 1.4, backgroundColor: '#2A9D8F', borderRadius: 12, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...sombra },
+  btnExportarTxt: { color: '#FFF', fontWeight: '800', fontSize: 13 },
+  btnSecundario:  { flex: 1, backgroundColor: C.field, borderRadius: 12, borderWidth: 1, borderColor: C.line, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  btnSecundarioTxt:{ color: C.ink, fontWeight: '700', fontSize: 12 },
+
+  error:          { backgroundColor: '#FFEBEE', flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, marginHorizontal: 16, marginTop: 10, borderRadius: 12 },
+  errorTxt:       { flex: 1, color: '#B71C1C', fontSize: 12, fontWeight: '600' },
+
+  resumenGrid:    { flexDirection: 'row', gap: 10 },
+  resumenCard:    { flex: 1, backgroundColor: C.card, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', gap: 6, ...sombra },
+  resumenIcono:   { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  resumenValor:   { fontSize: 18, fontWeight: '900' },
+  resumenLabel:   { fontSize: 11, color: C.muted, fontWeight: '600' },
+
+  grafica:        { minHeight: 180, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4, gap: 14, alignItems: 'flex-end' },
+  barraWrap:      { width: 66, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  barraValor:     { fontSize: 9, fontWeight: '700', height: 14 },
+  barraTrack:     { justifyContent: 'flex-end', minHeight: 120 },
+  barra:          { width: 30, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: '#2A9D8F' },
+  barraLabel:     { fontSize: 10, color: C.muted, width: 64, textAlign: 'center', fontWeight: '600' },
+
+  filaRanking:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  filaRankingBorde:{ borderTopWidth: 1, borderTopColor: C.line },
+  rankingNumero:  { width: 28, height: 28, borderRadius: 9, backgroundColor: C.field, color: C.muted, textAlign: 'center', lineHeight: 28, fontWeight: '900', fontSize: 13, overflow: 'hidden' },
+  rankingNombre:  { fontSize: 13, fontWeight: '700', color: C.ink },
+  rankingMeta:    { fontSize: 11, color: C.muted, marginTop: 2 },
+  rankingTotal:   { fontSize: 14, fontWeight: '900', color: C.ink },
+
+  ventaCard:      { gap: 8, padding: 14 },
+  ventaTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  ventaId:        { flex: 1, fontSize: 13, fontWeight: '800', color: C.ink },
+  ventaTotal:     { fontSize: 14, fontWeight: '900', color: C.primary },
+  ventaMetaRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  ventaMeta:      { fontSize: 11, color: C.muted, fontWeight: '600' },
+  ventaProductos: { fontSize: 12, color: '#444', lineHeight: 17 },
+  ventaCantidadPill:{ alignSelf: 'flex-start', backgroundColor: C.field, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   ventaCantidad:  { fontSize: 11, color: '#555', fontWeight: '700' },
-  historialCard:  { backgroundColor: '#FFF', borderRadius: 8, padding: 14, flexDirection: 'row', gap: 10, elevation: 1 },
-  historialTitulo:{ fontSize: 13, color: '#1A1A1A', fontWeight: '700' },
-  historialMeta:  { fontSize: 11, color: '#777', marginTop: 2 },
-  historialMonto: { fontSize: 13, fontWeight: '800', color: '#E63946' },
-  historialVentas:{ fontSize: 11, color: '#777', marginTop: 2 },
-  vacio:          { textAlign: 'center', color: '#777', marginTop: 18 },
+
+  historialCard:  { backgroundColor: C.card, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, ...sombra },
+  historialIcono: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  historialTitulo:{ fontSize: 14, color: C.ink, fontWeight: '800' },
+  historialMeta:  { fontSize: 11, color: C.muted, marginTop: 2 },
+  historialMonto: { fontSize: 14, fontWeight: '900', color: C.primary },
+  historialVentas:{ fontSize: 11, color: C.muted, marginTop: 2 },
+
+  vacio:          { textAlign: 'center', color: C.muted, marginTop: 10, fontSize: 13 },
+  vacioCard:      { alignItems: 'center', paddingVertical: 32 },
 });

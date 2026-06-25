@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthDB, setAuthUsuario } from '../services/db';
+import { AuthDB, setAuthUsuario, setAuthErrorHandler } from '../services/db';
 
 export type Usuario = { id: number; nombre: string; correo: string; rol: 'Master' | 'Promotor' };
 
@@ -66,6 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthUsuario(null);
     setUsuario(null);
   };
+
+  // Si cualquier petición recibe 401 (token expirado/inválido), cerramos sesión
+  // para que el usuario vuelva a iniciar sesión y obtenga un token válido.
+  useEffect(() => {
+    setAuthErrorHandler(() => { logout(); });
+    return () => setAuthErrorHandler(null);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ usuario, cargando, login, registro, logout }}>

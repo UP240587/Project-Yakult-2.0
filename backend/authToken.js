@@ -6,7 +6,7 @@ function crearToken(usuario) {
   return jwt.sign(
     { id: usuario.id, rol: usuario.rol },
     JWT_SECRET,
-    { expiresIn: '8h' }
+    { expiresIn: '30d' }
   );
 }
 

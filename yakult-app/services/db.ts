@@ -15,6 +15,13 @@ export const setAuthUsuario = (usuario: UsuarioApi, token?: string | null) => {
   tokenActual = token ?? null;
 };
 
+// Se invoca cuando el servidor responde 401 (token ausente, inválido o expirado).
+// AuthContext registra aquí su logout para sacar al usuario al login automáticamente.
+let onAuthError: (() => void) | null = null;
+export const setAuthErrorHandler = (fn: (() => void) | null) => {
+  onAuthError = fn;
+};
+
 const headers = (): Record<string, string> => ({
   'Content-Type': 'application/json',
   'x-github-token': 'anonymous',
@@ -24,6 +31,10 @@ const headers = (): Record<string, string> => ({
 
 const leerRespuesta = async (r: Response) => {
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401) {
+    onAuthError?.();
+    return data?.error ? data : { error: 'Tu sesión expiró. Inicia sesión de nuevo.' };
+  }
   if (!r.ok) return data?.error ? data : { error: 'Error de comunicación con el servidor.' };
   return data;
 };
@@ -58,7 +69,14 @@ export const OrdenesDB = {
   getAll: () => get('/ordenes'),
   agregar: (o: any) => post('/ordenes', o),
   cambiarEstado: (id: number, estado: string) => put(`/ordenes/${id}/estado`, { estado }),
+  asignarRepartidor: (id: number, repartidorId: number | null) => put(`/ordenes/${id}/repartidor`, { repartidorId }),
   eliminar:      (id: number)                  => del(`/ordenes/${id}`),
+};
+
+export const NotificacionesDB = {
+  getAll:        ()           => get('/notificaciones'),
+  marcarLeida:   (id: number) => put(`/notificaciones/${id}/leida`, {}),
+  marcarTodas:   ()           => put('/notificaciones/leer-todas', {}),
 };
 
 export const ReportesDB = {

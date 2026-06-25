@@ -6,7 +6,15 @@ import { AuthDB } from '../../services/db';
 import AppHeader from '../../components/AppHeader';
 import { confirmar } from '../../utils/confirmar';
 
-type Usuario = { id: number; nombre: string; correo: string; rol: 'Master'|'Promotor'; activo: boolean };
+type Rol = 'Master' | 'Promotor' | 'Repartidor';
+type Usuario = { id: number; nombre: string; correo: string; rol: Rol; activo: boolean };
+
+const ROLES: Rol[] = ['Master', 'Promotor', 'Repartidor'];
+const ROL_META: Record<Rol, { label: string; bg: string; txt: string }> = {
+  Master:     { label: '⭐ Master',     bg: '#FFF3CD', txt: '#856404' },
+  Promotor:   { label: 'Promotor',      bg: '#E8F5E9', txt: '#2E7D32' },
+  Repartidor: { label: '🚚 Repartidor', bg: '#E3F2FD', txt: '#1565C0' },
+};
 
 export default function AdminScreen() {
   const { usuario }           = useAuth();
@@ -29,14 +37,11 @@ export default function AdminScreen() {
     await cargar();
   };
 
-  const toggleMaster = (u: Usuario) => {
+  const cambiarRol = (u: Usuario, rol: Rol) => {
     if (u.id === usuario?.id) { Alert.alert('Error', 'No puedes modificar tu propio rol.'); return; }
-    const nuevoRol = u.rol === 'Master' ? 'Promotor' : 'Master';
-    confirmar(
-      nuevoRol === 'Master' ? 'Asignar Master' : 'Quitar Master',
-      `¿${nuevoRol === 'Master' ? 'Dar rol Master a' : 'Quitar Master a'} "${u.nombre}"?`,
-      async () => { await AuthDB.toggleMaster(u.id, nuevoRol); await cargar(); }
-    );
+    if (u.rol === rol) return;
+    confirmar('Cambiar rol', `¿Asignar el rol "${rol}" a "${u.nombre}"?`,
+      async () => { await AuthDB.toggleMaster(u.id, rol); await cargar(); });
   };
 
   const eliminar = (u: Usuario) => {
@@ -83,9 +88,9 @@ export default function AdminScreen() {
 
                 {/* Rol badge */}
                 <View style={{ flex: 0.9 }}>
-                  <View style={[s.badge, u.rol === 'Master' ? s.badgeM : s.badgeP]}>
-                    <Text style={[s.badgeTxt, u.rol === 'Master' ? s.badgeMTxt : s.badgePTxt]}>
-                      {u.rol === 'Master' ? '⭐ Master' : 'Promotor'}
+                  <View style={[s.badge, { backgroundColor: ROL_META[u.rol].bg }]}>
+                    <Text style={[s.badgeTxt, { color: ROL_META[u.rol].txt }]}>
+                      {ROL_META[u.rol].label}
                     </Text>
                   </View>
                 </View>
@@ -110,14 +115,19 @@ export default function AdminScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[s.btn, { backgroundColor: u.rol === 'Master' ? '#FFEBEE' : '#FFF3CD' }]}
-                    onPress={() => toggleMaster(u)} disabled={u.id === usuario?.id}
-                  >
-                    <Text style={[s.btnTxt, { color: u.rol === 'Master' ? '#C62828' : '#856404' }]}>
-                      {u.rol === 'Master' ? 'Quitar Master' : '⭐ Dar Master'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={s.rolSelector}>
+                    {ROLES.map((r) => (
+                      <TouchableOpacity
+                        key={r}
+                        style={[s.rolBtn, u.rol === r && { backgroundColor: ROL_META[r].txt }]}
+                        onPress={() => cambiarRol(u, r)}
+                        disabled={u.id === usuario?.id}
+                        accessibilityLabel={`Asignar rol ${r}`}
+                      >
+                        <Text style={[s.rolBtnTxt, u.rol === r && s.rolBtnTxtActivo]}>{r[0]}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
 
                   <TouchableOpacity
                     style={[s.btnIcono, u.id === usuario?.id && { opacity: 0.3 }]}
@@ -150,14 +160,16 @@ const s = StyleSheet.create({
   nombre:        { fontSize: 13, fontWeight: '600', color: '#1A1A1A' },
   tuTag:         { fontSize: 9, color: '#E63946', fontWeight: '700' },
   badge:         { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20, alignSelf: 'flex-start' },
-  badgeM:        { backgroundColor: '#FFF3CD' }, badgeMTxt:       { color: '#856404' },
-  badgeP:        { backgroundColor: '#E8F5E9' }, badgePTxt:       { color: '#2E7D32' },
   badgeActivo:   { backgroundColor: '#E8F5E9' }, badgeActivoTxt:  { color: '#2E7D32' },
   badgeInactivo: { backgroundColor: '#FFEBEE' }, badgeInactivoTxt:{ color: '#C62828' },
   badgeTxt:      { fontSize: 10, fontWeight: '700' },
   acciones:      { flexDirection: 'row', gap: 6, justifyContent: 'flex-end', alignItems: 'center' },
   btn:           { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 },
   btnTxt:        { fontSize: 11, fontWeight: '600' },
+  rolSelector:   { flexDirection: 'row', gap: 4, backgroundColor: '#F0F0F0', borderRadius: 8, padding: 3 },
+  rolBtn:        { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' },
+  rolBtnTxt:     { fontSize: 12, fontWeight: '800', color: '#888' },
+  rolBtnTxtActivo:{ color: '#FFF' },
   btnIcono:      { padding: 6, backgroundColor: '#FFF0F0', borderRadius: 6 },
   vacio:         { textAlign: 'center', color: '#9E9E9E', marginTop: 40 },
 });

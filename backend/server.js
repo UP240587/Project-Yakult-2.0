@@ -15,6 +15,7 @@ app.use(express.json());
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/ordenes', require('./routes/ordenes'));
+app.use('/api/notificaciones', require('./routes/notificaciones'));
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/auth', require('./routes/auth'));     
 

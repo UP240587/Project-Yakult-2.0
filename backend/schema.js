@@ -79,7 +79,7 @@ async function ensureSchemaInternal() {
       nombre     VARCHAR(100) NOT NULL,
       correo     VARCHAR(120) NOT NULL UNIQUE,
       contrasena VARCHAR(255) NOT NULL,
-      rol        ENUM('Master','Promotor') NOT NULL DEFAULT 'Promotor',
+      rol        ENUM('Master','Promotor','Repartidor') NOT NULL DEFAULT 'Promotor',
       activo     TINYINT(1) NOT NULL DEFAULT 1,
       creado_en  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -87,13 +87,27 @@ async function ensureSchemaInternal() {
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS ordenes (
-      id          INT AUTO_INCREMENT PRIMARY KEY,
-      cliente_id  INT           NOT NULL,
-      vendedor_id INT           NULL,
-      total       DECIMAL(10,2) NOT NULL,
-      estado      ENUM('Pendiente','En camino','Entregado') DEFAULT 'Pendiente',
-      fecha       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      id           INT AUTO_INCREMENT PRIMARY KEY,
+      cliente_id   INT           NOT NULL,
+      vendedor_id  INT           NULL,
+      repartidor_id INT          NULL,
+      total        DECIMAL(10,2) NOT NULL,
+      estado       ENUM('Pendiente','En camino','Entregado') DEFAULT 'Pendiente',
+      fecha        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS notificaciones (
+      id         INT AUTO_INCREMENT PRIMARY KEY,
+      usuario_id INT          NOT NULL,
+      orden_id   INT          NULL,
+      tipo       VARCHAR(30)  NOT NULL DEFAULT 'info',
+      titulo     VARCHAR(120) NOT NULL,
+      mensaje    VARCHAR(255) NOT NULL,
+      leida      TINYINT(1)   NOT NULL DEFAULT 0,
+      creado_en  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -136,17 +150,22 @@ async function ensureSchemaInternal() {
     await addColumnIfMissing('clientes', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
   }
   if (await tableExists('usuarios')) {
-    await addColumnIfMissing('usuarios', 'rol', "ENUM('Master','Promotor') NOT NULL DEFAULT 'Promotor'");
+    await addColumnIfMissing('usuarios', 'rol', "ENUM('Master','Promotor','Repartidor') NOT NULL DEFAULT 'Promotor'");
     await addColumnIfMissing('usuarios', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
     await addColumnIfMissing('usuarios', 'creado_en', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    // Asegura que el ENUM de rol incluya 'Repartidor' aunque la tabla ya existiera.
+    await db.query("ALTER TABLE usuarios MODIFY COLUMN rol ENUM('Master','Promotor','Repartidor') NOT NULL DEFAULT 'Promotor'");
   }
   if (await tableExists('ordenes')) {
     await addColumnIfMissing('ordenes', 'vendedor_id', 'INT NULL');
+    await addColumnIfMissing('ordenes', 'repartidor_id', 'INT NULL');
   }
 
   await createIndexIfMissing('ordenes', 'idx_ordenes_fecha', 'fecha');
   await createIndexIfMissing('ordenes', 'idx_ordenes_cliente_fecha', 'cliente_id, fecha');
   await createIndexIfMissing('ordenes', 'idx_ordenes_vendedor_fecha', 'vendedor_id, fecha');
+  await createIndexIfMissing('ordenes', 'idx_ordenes_repartidor_fecha', 'repartidor_id, fecha');
+  await createIndexIfMissing('notificaciones', 'idx_notif_usuario', 'usuario_id, leida, creado_en');
   await createIndexIfMissing('orden_items', 'idx_orden_items_orden_producto', 'orden_id, producto_id');
   await createIndexIfMissing('orden_items', 'idx_orden_items_producto', 'producto_id');
   await createIndexIfMissing('productos', 'idx_productos_categoria', 'categoria');
