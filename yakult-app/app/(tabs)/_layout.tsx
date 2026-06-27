@@ -35,9 +35,10 @@ export default function TabLayout() {
         }} />
       ))}
       {/* Accesibles via router.push pero ocultos del tab bar */}
-      <Tabs.Screen name="perfil" options={{ href: null }} />
-      <Tabs.Screen name="admin"  options={{ href: null }} />
-      <Tabs.Screen name="ventas" options={{ href: null }} />
+      <Tabs.Screen name="perfil"    options={{ href: null }} />
+      <Tabs.Screen name="admin"     options={{ href: null }} />
+      <Tabs.Screen name="ventas"    options={{ href: null }} />
+      <Tabs.Screen name="dashboard" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -79,6 +79,15 @@ export const NotificacionesDB = {
   marcarTodas:   ()           => put('/notificaciones/leer-todas', {}),
 };
 
+export const DashboardDB = {
+  get: (filtros?: { fechaInicio?: string; fechaFin?: string }) => {
+    const qs = filtros?.fechaInicio && filtros?.fechaFin
+      ? `?fechaInicio=${encodeURIComponent(filtros.fechaInicio)}&fechaFin=${encodeURIComponent(filtros.fechaFin)}`
+      : '';
+    return get(`/dashboard${qs}`);
+  },
+};
+
 export const ReportesDB = {
   opciones:  () => get('/reportes/opciones'),
   generar:   (filtros: any) => post('/reportes/ventas', filtros),

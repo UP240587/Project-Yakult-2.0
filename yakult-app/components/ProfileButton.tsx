@@ -30,6 +30,14 @@ export default function ProfileButton() {
     navegar('/(tabs)/admin');
   };
 
+  const irDashboard = () => {
+    if (!esMaster) {
+      Alert.alert('🔒 Acceso restringido', 'Solo los usuarios Master pueden acceder al dashboard.');
+      return;
+    }
+    navegar('/(tabs)/dashboard');
+  };
+
   return (
     <View style={s.container}>
       <TouchableOpacity style={s.circulo} onPress={() => setAbierto(true)} activeOpacity={0.8}>
@@ -68,6 +76,13 @@ export default function ProfileButton() {
               <Text style={s.itemIcono}>🪪</Text>
               <Text style={s.itemTxt}>Mi Perfil</Text>
               <Text style={s.chevron}>›</Text>
+            </TouchableOpacity>
+
+            {/* Dashboard de estadísticas (solo Master) */}
+            <TouchableOpacity style={s.item} onPress={irDashboard}>
+              <Text style={s.itemIcono}>{esMaster ? '📊' : '🔒'}</Text>
+              <Text style={[s.itemTxt, !esMaster && s.itemDeshabilitado]}>Dashboard</Text>
+              {!esMaster && <Text style={s.lockHint}>Solo Masters</Text>}
             </TouchableOpacity>
 
             {/* Administrador */}
