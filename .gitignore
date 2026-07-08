@@ -1,0 +1,12 @@
+# Credenciales — NUNCA subir a git
+backend/.env
+*.env
+!*.env.example
+
+# Dependencias (ya hay node_modules trackeados históricos; esto evita agregar más)
+node_modules/
+
+# Builds y caches
+.expo/
+dist/
+web-build/

@@ -1,19 +1,25 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { XStack, YStack } from 'tamagui';
 import { Redirect, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { AuthDB } from '../../services/db';
 import AppHeader from '../../components/AppHeader';
 import { confirmar } from '../../utils/confirmar';
+import { colors } from '../../tamagui.config';
+import {
+  AppButton, AppText, Avatar, Badge, EmptyState, Loading, Screen, a11yState,
+} from '../../components/ui';
 
 type Rol = 'Master' | 'Promotor' | 'Repartidor';
 type Usuario = { id: number; nombre: string; correo: string; rol: Rol; activo: boolean };
 
 const ROLES: Rol[] = ['Master', 'Promotor', 'Repartidor'];
-const ROL_META: Record<Rol, { label: string; bg: string; txt: string }> = {
-  Master:     { label: '⭐ Master',     bg: '#FFF3CD', txt: '#856404' },
-  Promotor:   { label: 'Promotor',      bg: '#E8F5E9', txt: '#2E7D32' },
-  Repartidor: { label: '🚚 Repartidor', bg: '#E3F2FD', txt: '#1565C0' },
+const ROL_META: Record<Rol, { label: string; tone: 'master' | 'success' | 'info'; ink: string }> = {
+  Master:     { label: 'Master',     tone: 'master',  ink: '#856404' },
+  Promotor:   { label: 'Promotor',   tone: 'success', ink: '#2E7D32' },
+  Repartidor: { label: 'Repartidor', tone: 'info',    ink: '#1565C0' },
 };
 
 export default function AdminScreen() {
@@ -52,124 +58,136 @@ export default function AdminScreen() {
     });
   };
 
+  const HCol = ({ flex, children, right }: { flex: number; children: React.ReactNode; right?: boolean }) => (
+    <AppText
+      flex={flex}
+      fontSize={11}
+      fontWeight="700"
+      tone="muted"
+      textTransform="uppercase"
+      letterSpacing={0.5}
+      textAlign={right ? 'right' : 'left'}
+    >
+      {children}
+    </AppText>
+  );
+
   return (
-    <View style={s.pantalla}>
+    <Screen>
       <AppHeader titulo="Panel Administrador" subtitulo={`${lista.length} usuarios registrados`} />
 
-      {cargando ? <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#E63946" /> : (
+      {cargando ? <Loading /> : (
         <ScrollView>
           {/* Encabezado tabla */}
-          <View style={s.tablaHeader}>
-            <Text style={[s.colH, { flex: 2   }]}>Promotor</Text>
-            <Text style={[s.colH, { flex: 1.8 }]}>Correo</Text>
-            <Text style={[s.colH, { flex: 0.9 }]}>Rol</Text>
-            <Text style={[s.colH, { flex: 0.8 }]}>Estado</Text>
-            <Text style={[s.colH, { flex: 2.2, textAlign: 'right' }]}>Acciones</Text>
-          </View>
+          <XStack
+            alignItems="center"
+            paddingHorizontal={16}
+            paddingVertical={10}
+            backgroundColor="$field"
+            borderBottomWidth={1}
+            borderBottomColor="$line"
+          >
+            <HCol flex={2}>Promotor</HCol>
+            <HCol flex={1.8}>Correo</HCol>
+            <HCol flex={0.9}>Rol</HCol>
+            <HCol flex={0.8}>Estado</HCol>
+            <HCol flex={2.2} right>Acciones</HCol>
+          </XStack>
 
           {lista.length === 0
-            ? <Text style={s.vacio}>Sin usuarios registrados.</Text>
+            ? <EmptyState icon="people-outline" mensaje="Sin usuarios registrados." />
             : lista.map((u, i) => (
-              <View key={u.id} style={[s.fila, i % 2 === 0 && s.filaAlterna]}>
+              <XStack
+                key={u.id}
+                alignItems="center"
+                paddingHorizontal={16}
+                paddingVertical={12}
+                gap={8}
+                backgroundColor={i % 2 === 0 ? '$field' : '$card'}
+                borderBottomWidth={1}
+                borderBottomColor="$line"
+              >
 
                 {/* Nombre */}
-                <View style={[s.col, { flex: 2 }]}>
-                  <View style={[s.avatar, u.rol === 'Master' && s.avatarMaster]}>
-                    <Text style={s.avatarTxt}>{u.nombre[0].toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.nombre} numberOfLines={1}>{u.nombre}</Text>
-                    {u.id === usuario?.id && <Text style={s.tuTag}>Tú</Text>}
-                  </View>
-                </View>
+                <XStack flex={2} alignItems="center" gap={8}>
+                  <Avatar
+                    inicial={u.nombre[0].toUpperCase()}
+                    color={u.rol === 'Master' ? '#F59E0B' : '$primary'}
+                  />
+                  <YStack flex={1}>
+                    <AppText fontSize={13} fontWeight="600" numberOfLines={1}>{u.nombre}</AppText>
+                    {u.id === usuario?.id && <AppText fontSize={9} tone="primary" fontWeight="700">Tú</AppText>}
+                  </YStack>
+                </XStack>
 
                 {/* Correo */}
-                <Text style={[s.colTxt, { flex: 1.8 }]} numberOfLines={1}>{u.correo}</Text>
+                <AppText flex={1.8} fontSize={12} color="#555" numberOfLines={1}>{u.correo}</AppText>
 
                 {/* Rol badge */}
-                <View style={{ flex: 0.9 }}>
-                  <View style={[s.badge, { backgroundColor: ROL_META[u.rol].bg }]}>
-                    <Text style={[s.badgeTxt, { color: ROL_META[u.rol].txt }]}>
-                      {ROL_META[u.rol].label}
-                    </Text>
-                  </View>
-                </View>
+                <YStack flex={0.9}>
+                  <Badge tone={ROL_META[u.rol].tone}>{ROL_META[u.rol].label}</Badge>
+                </YStack>
 
                 {/* Estado badge */}
-                <View style={{ flex: 0.8 }}>
-                  <View style={[s.badge, u.activo ? s.badgeActivo : s.badgeInactivo]}>
-                    <Text style={[s.badgeTxt, u.activo ? s.badgeActivoTxt : s.badgeInactivoTxt]}>
-                      {u.activo ? 'Activo' : 'Inactivo'}
-                    </Text>
-                  </View>
-                </View>
+                <YStack flex={0.8}>
+                  <Badge tone={u.activo ? 'success' : 'danger'}>
+                    {u.activo ? 'Activo' : 'Inactivo'}
+                  </Badge>
+                </YStack>
 
                 {/* Acciones */}
-                <View style={[s.acciones, { flex: 2.2 }]}>
-                  <TouchableOpacity
-                    style={[s.btn, { backgroundColor: u.activo ? '#FFF3E0' : '#E8F5E9' }]}
-                    onPress={() => toggleActivo(u)} disabled={u.id === usuario?.id}
+                <XStack flex={2.2} gap={6} justifyContent="flex-end" alignItems="center">
+                  <AppButton
+                    size="sm"
+                    variant={u.activo ? 'danger' : 'success'}
+                    disabled={u.id === usuario?.id}
+                    onPress={() => toggleActivo(u)}
                   >
-                    <Text style={[s.btnTxt, { color: u.activo ? '#E65100' : '#2E7D32' }]}>
-                      {u.activo ? 'Desactivar' : 'Activar'}
-                    </Text>
-                  </TouchableOpacity>
+                    {u.activo ? 'Desactivar' : 'Activar'}
+                  </AppButton>
 
-                  <View style={s.rolSelector}>
+                  <XStack gap={4} backgroundColor="$line" borderRadius={8} padding={3}>
                     {ROLES.map((r) => (
-                      <TouchableOpacity
+                      <YStack
                         key={r}
-                        style={[s.rolBtn, u.rol === r && { backgroundColor: ROL_META[r].txt }]}
-                        onPress={() => cambiarRol(u, r)}
-                        disabled={u.id === usuario?.id}
+                        width={26}
+                        height={26}
+                        borderRadius={6}
+                        alignItems="center"
+                        justifyContent="center"
+                        backgroundColor={u.rol === r ? ROL_META[r].ink : '$card'}
+                        cursor={u.id === usuario?.id ? 'default' : 'pointer'}
+                        pressStyle={{ opacity: 0.7 }}
                         accessibilityLabel={`Asignar rol ${r}`}
+                        {...a11yState({ disabled: u.id === usuario?.id })}
+                        onPress={u.id === usuario?.id ? undefined : () => cambiarRol(u, r)}
                       >
-                        <Text style={[s.rolBtnTxt, u.rol === r && s.rolBtnTxtActivo]}>{r[0]}</Text>
-                      </TouchableOpacity>
+                        <AppText fontSize={12} fontWeight="800" color={u.rol === r ? '#FFF' : '$muted'}>
+                          {r[0]}
+                        </AppText>
+                      </YStack>
                     ))}
-                  </View>
+                  </XStack>
 
-                  <TouchableOpacity
-                    style={[s.btnIcono, u.id === usuario?.id && { opacity: 0.3 }]}
-                    onPress={() => eliminar(u)} disabled={u.id === usuario?.id}
+                  <YStack
+                    padding={7}
+                    backgroundColor="$dangerSoft"
+                    borderRadius={8}
+                    opacity={u.id === usuario?.id ? 0.3 : 1}
+                    cursor={u.id === usuario?.id ? 'default' : 'pointer'}
+                    pressStyle={{ opacity: 0.7 }}
+                    {...a11yState({ disabled: u.id === usuario?.id })}
+                    onPress={u.id === usuario?.id ? undefined : () => eliminar(u)}
                   >
-                    <Text style={{ fontSize: 16 }}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
+                    <Ionicons name="trash-outline" size={15} color={colors.dangerInk} />
+                  </YStack>
+                </XStack>
 
-              </View>
+              </XStack>
             ))
           }
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  pantalla:      { flex: 1, backgroundColor: '#F5F5F5' },
-  tablaHeader:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FAFAFA', borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
-  colH:          { fontSize: 11, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 },
-  fila:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0', gap: 8 },
-  filaAlterna:   { backgroundColor: '#FAFAFA' },
-  col:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  colTxt:        { fontSize: 12, color: '#555' },
-  avatar:        { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E63946', alignItems: 'center', justifyContent: 'center' },
-  avatarMaster:  { backgroundColor: '#F59E0B' },
-  avatarTxt:     { color: '#FFF', fontWeight: '700', fontSize: 14 },
-  nombre:        { fontSize: 13, fontWeight: '600', color: '#1A1A1A' },
-  tuTag:         { fontSize: 9, color: '#E63946', fontWeight: '700' },
-  badge:         { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20, alignSelf: 'flex-start' },
-  badgeActivo:   { backgroundColor: '#E8F5E9' }, badgeActivoTxt:  { color: '#2E7D32' },
-  badgeInactivo: { backgroundColor: '#FFEBEE' }, badgeInactivoTxt:{ color: '#C62828' },
-  badgeTxt:      { fontSize: 10, fontWeight: '700' },
-  acciones:      { flexDirection: 'row', gap: 6, justifyContent: 'flex-end', alignItems: 'center' },
-  btn:           { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 },
-  btnTxt:        { fontSize: 11, fontWeight: '600' },
-  rolSelector:   { flexDirection: 'row', gap: 4, backgroundColor: '#F0F0F0', borderRadius: 8, padding: 3 },
-  rolBtn:        { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' },
-  rolBtnTxt:     { fontSize: 12, fontWeight: '800', color: '#888' },
-  rolBtnTxtActivo:{ color: '#FFF' },
-  btnIcono:      { padding: 6, backgroundColor: '#FFF0F0', borderRadius: 6 },
-  vacio:         { textAlign: 'center', color: '#9E9E9E', marginTop: 40 },
-});

@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Alert, Pressable } from 'react-native';
+import { Modal, Alert, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { XStack, YStack } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { confirmar } from '../utils/confirmar';
+import { colors } from '../tamagui.config';
+import { AppText, Avatar, Badge, type IconName } from './ui';
 
 export default function ProfileButton() {
   const [abierto, setAbierto] = useState(false);
@@ -24,7 +28,7 @@ export default function ProfileButton() {
 
   const irAdmin = () => {
     if (!esMaster) {
-      Alert.alert('🔒 Acceso restringido', 'Solo los usuarios Master pueden acceder al panel de administración.');
+      Alert.alert('Acceso restringido', 'Solo los usuarios Master pueden acceder al panel de administración.');
       return;
     }
     navegar('/(tabs)/admin');
@@ -32,113 +36,142 @@ export default function ProfileButton() {
 
   const irDashboard = () => {
     if (!esMaster) {
-      Alert.alert('🔒 Acceso restringido', 'Solo los usuarios Master pueden acceder al dashboard.');
+      Alert.alert('Acceso restringido', 'Solo los usuarios Master pueden acceder al dashboard.');
       return;
     }
     navegar('/(tabs)/dashboard');
   };
 
+  // Fila de menú reutilizable
+  const Item = ({
+    icon, label, onPress, right, color, disabledLook,
+  }: {
+    icon: IconName;
+    label: string;
+    onPress?: () => void;
+    right?: React.ReactNode;
+    color?: string;
+    disabledLook?: boolean;
+  }) => (
+    <XStack
+      alignItems="center"
+      padding={14}
+      gap={12}
+      cursor="pointer"
+      pressStyle={{ backgroundColor: '$field' }}
+      onPress={onPress}
+    >
+      <Ionicons
+        name={icon}
+        size={19}
+        color={color ?? (disabledLook ? '#BBBBBB' : colors.muted)}
+        style={{ width: 24, textAlign: 'center' }}
+      />
+      <AppText flex={1} color={color ?? (disabledLook ? '#BBBBBB' : '$ink')}>{label}</AppText>
+      {right}
+    </XStack>
+  );
+
   return (
-    <View style={s.container}>
-      <TouchableOpacity style={s.circulo} onPress={() => setAbierto(true)} activeOpacity={0.8}>
-        <Text style={s.inicial}>{inicial}</Text>
-      </TouchableOpacity>
-      <Text style={s.rolLabel}>{esMaster ? '⭐ Master' : 'Promotor'}</Text>
+    <YStack alignItems="center">
+      <Pressable onPress={() => setAbierto(true)}>
+        <Avatar inicial={inicial} size={42} elevation={3} />
+      </Pressable>
+      <AppText fontSize={9} tone="muted" marginTop={3} fontWeight="600" letterSpacing={0.3}>
+        {esMaster ? 'Master' : 'Promotor'}
+      </AppText>
 
       <Modal visible={abierto} transparent animationType="fade" onRequestClose={() => setAbierto(false)}>
         <Pressable style={s.overlay} onPress={() => setAbierto(false)}>
-          <Pressable style={s.menu} onPress={e => e.stopPropagation()}>
+          <Pressable onPress={e => e.stopPropagation()}>
+            <YStack
+              backgroundColor="$card"
+              borderRadius={16}
+              width={290}
+              overflow="hidden"
+              elevation={10}
+              shadowColor="#1A1A2E"
+              shadowOpacity={0.18}
+              shadowRadius={24}
+              shadowOffset={{ width: 0, height: 8 }}
+            >
 
-            {/* Info usuario */}
-            <View style={s.menuHeader}>
-              <View style={s.menuAvatar}><Text style={s.menuAvatarTxt}>{inicial}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.menuNombre} numberOfLines={1}>{usuario?.nombre}</Text>
-                <Text style={s.menuCorreo} numberOfLines={1}>{usuario?.correo}</Text>
-              </View>
-            </View>
+              {/* Info usuario */}
+              <XStack alignItems="center" padding={16} gap={12} backgroundColor="$field">
+                <Avatar inicial={inicial} size={46} />
+                <YStack flex={1}>
+                  <AppText fontSize={14} fontWeight="700" numberOfLines={1}>{usuario?.nombre}</AppText>
+                  <AppText fontSize={12} tone="muted" marginTop={2} numberOfLines={1}>{usuario?.correo}</AppText>
+                </YStack>
+              </XStack>
 
-            <View style={s.divider} />
+              <YStack height={1} backgroundColor="$line" />
 
-            {/* Rol */}
-            <View style={s.item}>
-              <Text style={s.itemIcono}>👤</Text>
-              <Text style={s.itemTxt}>Rol</Text>
-              <View style={[s.badge, esMaster ? s.badgeM : s.badgeP]}>
-                <Text style={[s.badgeTxt, esMaster ? s.badgeMTxt : s.badgePTxt]}>
-                  {esMaster ? '⭐ Master' : 'Promotor'}
-                </Text>
-              </View>
-            </View>
+              {/* Rol */}
+              <Item
+                icon="person-outline"
+                label="Rol"
+                right={
+                  <Badge tone={esMaster ? 'master' : 'success'}>
+                    {esMaster ? 'Master' : 'Promotor'}
+                  </Badge>
+                }
+              />
 
-            {/* ── Mi Perfil (nuevo) ── */}
-            <TouchableOpacity style={s.item} onPress={() => navegar('/(tabs)/perfil')}>
-              <Text style={s.itemIcono}>🪪</Text>
-              <Text style={s.itemTxt}>Mi Perfil</Text>
-              <Text style={s.chevron}>›</Text>
-            </TouchableOpacity>
+              {/* Mi Perfil */}
+              <Item
+                icon="id-card-outline"
+                label="Mi Perfil"
+                onPress={() => navegar('/(tabs)/perfil')}
+                right={<Ionicons name="chevron-forward" size={16} color="#C0C0C0" />}
+              />
 
-            {/* Dashboard de estadísticas (solo Master) */}
-            <TouchableOpacity style={s.item} onPress={irDashboard}>
-              <Text style={s.itemIcono}>{esMaster ? '📊' : '🔒'}</Text>
-              <Text style={[s.itemTxt, !esMaster && s.itemDeshabilitado]}>Dashboard</Text>
-              {!esMaster && <Text style={s.lockHint}>Solo Masters</Text>}
-            </TouchableOpacity>
+              {/* Ventas / Cobranza (Sprint 9: pagos Mercado Pago) */}
+              <Item
+                icon="wallet-outline"
+                label="Ventas / Cobranza"
+                onPress={() => navegar('/(tabs)/ventas')}
+                right={<Ionicons name="chevron-forward" size={16} color="#C0C0C0" />}
+              />
 
-            {/* Administrador */}
-            <TouchableOpacity style={s.item} onPress={irAdmin}>
-              <Text style={s.itemIcono}>{esMaster ? '⚙️' : '🔒'}</Text>
-              <Text style={[s.itemTxt, !esMaster && s.itemDeshabilitado]}>Administrador</Text>
-              {!esMaster && <Text style={s.lockHint}>Solo Masters</Text>}
-            </TouchableOpacity>
+              {/* Dashboard de estadísticas (solo Master) */}
+              <Item
+                icon={esMaster ? 'stats-chart-outline' : 'lock-closed-outline'}
+                label="Dashboard"
+                onPress={irDashboard}
+                disabledLook={!esMaster}
+                right={!esMaster ? <AppText fontSize={11} color="#BBBBBB">Solo Masters</AppText> : undefined}
+              />
 
-            {/* Ayuda */}
-            <TouchableOpacity style={s.item} onPress={() => { setAbierto(false); Alert.alert('Ayuda', 'Soporte: soporte@yakult-ags.mx'); }}>
-              <Text style={s.itemIcono}>❓</Text>
-              <Text style={s.itemTxt}>Ayuda</Text>
-            </TouchableOpacity>
+              {/* Administrador */}
+              <Item
+                icon={esMaster ? 'settings-outline' : 'lock-closed-outline'}
+                label="Administrador"
+                onPress={irAdmin}
+                disabledLook={!esMaster}
+                right={!esMaster ? <AppText fontSize={11} color="#BBBBBB">Solo Masters</AppText> : undefined}
+              />
 
-            <View style={s.divider} />
+              {/* Ayuda */}
+              <Item
+                icon="help-circle-outline"
+                label="Ayuda"
+                onPress={() => { setAbierto(false); Alert.alert('Ayuda', 'Soporte: soporte@yakult-ags.mx'); }}
+              />
 
-            {/* Cerrar sesión */}
-            <TouchableOpacity style={s.item} onPress={cerrarSesion}>
-              <Text style={s.itemIcono}>🚪</Text>
-              <Text style={[s.itemTxt, { color: '#E63946' }]}>Cerrar sesión</Text>
-            </TouchableOpacity>
+              <YStack height={1} backgroundColor="$line" />
 
+              {/* Cerrar sesión */}
+              <Item icon="log-out-outline" label="Cerrar sesión" color={colors.primary} onPress={cerrarSesion} />
+
+            </YStack>
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </YStack>
   );
 }
 
 const s = StyleSheet.create({
-  container:     { alignItems: 'center' },
-  circulo:       { width: 42, height: 42, borderRadius: 21, backgroundColor: '#E63946', alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  inicial:       { color: '#FFF', fontWeight: '700', fontSize: 18 },
-  rolLabel:      { fontSize: 9, color: '#9E9E9E', marginTop: 3, fontWeight: '600', letterSpacing: 0.3 },
-
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-start', alignItems: 'flex-start', paddingTop: 90, paddingLeft: 12 },
-  menu:          { backgroundColor: '#FFF', borderRadius: 16, width: 290, elevation: 10, overflow: 'hidden' },
-
-  menuHeader:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, backgroundColor: '#FAFAFA' },
-  menuAvatar:    { width: 46, height: 46, borderRadius: 23, backgroundColor: '#E63946', alignItems: 'center', justifyContent: 'center' },
-  menuAvatarTxt: { color: '#FFF', fontWeight: '700', fontSize: 20 },
-  menuNombre:    { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
-  menuCorreo:    { fontSize: 12, color: '#9E9E9E', marginTop: 2 },
-
-  divider:       { height: 1, backgroundColor: '#F0F0F0' },
-
-  item:          { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  itemIcono:     { fontSize: 18, width: 24, textAlign: 'center' },
-  itemTxt:       { flex: 1, fontSize: 14, color: '#1A1A1A' },
-  itemDeshabilitado: { color: '#BBBBBB' },
-  chevron:       { fontSize: 18, color: '#C0C0C0' },
-  lockHint:      { fontSize: 11, color: '#BBBBBB' },
-
-  badge:    { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  badgeM:   { backgroundColor: '#FFF3CD' }, badgeMTxt: { color: '#856404' },
-  badgeP:   { backgroundColor: '#E8F5E9' }, badgePTxt: { color: '#2E7D32' },
-  badgeTxt: { fontSize: 11, fontWeight: '700' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-start', alignItems: 'flex-start', paddingTop: 90, paddingLeft: 12 },
 });

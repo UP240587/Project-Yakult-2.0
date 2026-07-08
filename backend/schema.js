@@ -123,6 +123,27 @@ async function ensureSchemaInternal() {
     )
   `);
 
+  // ── Sprint 9: pagos con Mercado Pago ──
+  // Cada fila es un intento de cobro (preferencia de Checkout Pro y, cuando
+  // MP notifica/confirmamos, el payment asociado). El estado consolidado de
+  // la orden vive en ordenes.pago_estado.
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS pagos (
+      id               INT AUTO_INCREMENT PRIMARY KEY,
+      orden_id         INT           NOT NULL,
+      mp_preference_id VARCHAR(120)  NULL,
+      mp_payment_id    VARCHAR(40)   NULL,
+      estado           ENUM('Pendiente','Aprobado','Rechazado','Reembolsado') NOT NULL DEFAULT 'Pendiente',
+      monto            DECIMAL(10,2) NOT NULL,
+      metodo           VARCHAR(60)   NULL,
+      link_pago        VARCHAR(500)  NULL,
+      raw_json         LONGTEXT      NULL,
+      creado_en        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      actualizado_en   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (orden_id) REFERENCES ordenes(id)
+    )
+  `);
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS reportes_ventas (
       id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -159,6 +180,10 @@ async function ensureSchemaInternal() {
   if (await tableExists('ordenes')) {
     await addColumnIfMissing('ordenes', 'vendedor_id', 'INT NULL');
     await addColumnIfMissing('ordenes', 'repartidor_id', 'INT NULL');
+    // Estado de cobro, independiente del estado logístico. 'Sin pago' queda
+    // como default para órdenes históricas previas a Mercado Pago.
+    await addColumnIfMissing('ordenes', 'pago_estado',
+      "ENUM('Sin pago','Pendiente','Aprobado','Rechazado','Reembolsado') NOT NULL DEFAULT 'Sin pago'");
   }
 
   await createIndexIfMissing('ordenes', 'idx_ordenes_fecha', 'fecha');
@@ -170,6 +195,8 @@ async function ensureSchemaInternal() {
   await createIndexIfMissing('orden_items', 'idx_orden_items_producto', 'producto_id');
   await createIndexIfMissing('productos', 'idx_productos_categoria', 'categoria');
   await createIndexIfMissing('reportes_ventas', 'idx_reportes_usuario_fecha', 'usuario_id, creado_en');
+  await createIndexIfMissing('pagos', 'idx_pagos_orden', 'orden_id, creado_en');
+  await createIndexIfMissing('pagos', 'idx_pagos_mp_payment', 'mp_payment_id');
 }
 
 module.exports = { ensureSchema };

@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     SELECT o.id, c.nombre AS clienteNombre, c.telefono AS clienteTelefono,
            u.nombre AS vendedorNombre,
            o.repartidor_id AS repartidorId, r.nombre AS repartidorNombre,
-           o.total, o.estado,
+           o.total, o.estado, o.pago_estado AS pagoEstado,
            DATE_FORMAT(o.fecha,'%d %b') AS fecha
     FROM ordenes o
     JOIN clientes c ON c.id = o.cliente_id
@@ -147,10 +147,21 @@ router.put('/:id/repartidor', async (req, res) => {
 
 // DELETE cancelar orden (con rollback de stock)
 router.delete('/:id', async (req, res) => {
+  // Una orden con pago aprobado no se elimina: es un registro contable.
+  // (Un reembolso se gestionaría desde el panel de Mercado Pago.)
+  const [[orden]] = await db.query(
+    'SELECT pago_estado AS pagoEstado FROM ordenes WHERE id = ?',
+    [req.params.id]
+  );
+  if (orden?.pagoEstado === 'Aprobado') {
+    return res.status(400).json({ error: 'No se puede eliminar una orden ya pagada.' });
+  }
+
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    // Primero borra los items (foreign key)
+    // Primero borra pagos e items (foreign keys)
+    await conn.query('DELETE FROM pagos WHERE orden_id = ?', [req.params.id]);
     await conn.query('DELETE FROM orden_items WHERE orden_id = ?', [req.params.id]);
     await conn.query('DELETE FROM ordenes WHERE id = ?', [req.params.id]);
     await conn.commit();

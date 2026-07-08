@@ -99,6 +99,16 @@ export const ReportesDB = {
     `${BASE}${withAuthQuery(`/reportes/${id}/imprimir`)}`,
 };
 
+// ── Sprint 9: Mercado Pago ──
+export const PagosDB = {
+  // Historial de cobranza + resumen (pantalla Ventas)
+  getAll: () => get('/pagos'),
+  // Crea la preferencia de Checkout Pro y devuelve { link } para cobrar
+  crearPreferencia: (ordenId: number) => post('/pagos/preferencia', { ordenId }),
+  // Consulta a MP el estado real del cobro de una orden (fallback sin webhooks)
+  verificar: (ordenId: number) => get(`/pagos/orden/${ordenId}/verificar`),
+};
+
 export const AuthDB = {
   login:          (data: any)              => post('/auth/login',    data),
   registro:       (data: any)              => post('/auth/registro',  data),

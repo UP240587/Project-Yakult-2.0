@@ -1,24 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, ActivityIndicator,
-} from 'react-native';
+import { ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Spinner, XStack, YStack } from 'tamagui';
 import { Redirect, useFocusEffect } from 'expo-router';
 import AppHeader from '../../components/AppHeader';
 import { DashboardDB } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-
-// ── Paleta (RNF-46): rojo / blanco / gris / negro ──
-const C = {
-  bg: '#F2F3F5',
-  card: '#FFFFFF',
-  primary: '#E63946',
-  primarySoft: '#FDECEE',
-  ink: '#1A1A1A',
-  muted: '#7A7A7A',
-  line: '#ECECEC',
-};
+import { colors } from '../../tamagui.config';
+import {
+  AppButton, AppText, Card, EmptyState, Field, Loading, Screen, type IconName,
+} from '../../components/ui';
 
 const ESTADO_COLOR: Record<string, string> = {
   'Pendiente': '#FF9800',
@@ -38,14 +30,6 @@ type Data = {
   ventasChart: Array<{ fecha: string; etiqueta: string; total: number }>;
   bestSellers: Array<{ id: number; nombre: string; categoria: string; cantidad: number; total: number }>;
   ordenesPorEstado: Array<{ estado: string; cantidad: number }>;
-};
-
-const sombra = {
-  elevation: 2,
-  shadowColor: '#000',
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 2 },
 };
 
 export default function DashboardScreen() {
@@ -102,222 +86,194 @@ export default function DashboardScreen() {
     [data]
   );
 
-  const RESUMEN = data ? [
-    { label: 'Ventas Totales', valor: money(data.resumen.ventasTotales), icono: '💰' },
-    { label: 'Órdenes Totales', valor: String(data.resumen.ordenesTotales), icono: '🧾' },
-    { label: 'Clientes', valor: String(data.resumen.clientesActivos), icono: '👥' },
-    { label: 'Productos Vendidos', valor: String(data.resumen.productosVendidos), icono: '📦' },
+  const RESUMEN: Array<{ label: string; valor: string; icono: IconName }> = data ? [
+    { label: 'Ventas Totales',     valor: money(data.resumen.ventasTotales),        icono: 'cash-outline' },
+    { label: 'Órdenes Totales',    valor: String(data.resumen.ordenesTotales),      icono: 'receipt-outline' },
+    { label: 'Clientes',           valor: String(data.resumen.clientesActivos),     icono: 'people-outline' },
+    { label: 'Productos Vendidos', valor: String(data.resumen.productosVendidos),   icono: 'cube-outline' },
   ] : [];
 
   return (
-    <View style={s.pantalla}>
+    <Screen>
       {/* Barra de navegación superior + perfil (avatar/nombre/rol) en la esquina sup. izq. */}
       <AppHeader titulo="Dashboard" subtitulo={usuario ? `${usuario.nombre} · ${usuario.rol}` : undefined} />
 
-      <ScrollView contentContainerStyle={s.contenido}>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}>
         {/* Título grande en negrita */}
-        <Text style={s.tituloGrande}>Statistics Dashboard</Text>
-        <Text style={s.subtitulo}>
+        <AppText fontSize={28} fontWeight="800" letterSpacing={-0.5}>Statistics Dashboard</AppText>
+        <AppText fontSize={13} tone="muted" marginTop={-6}>
           {aplicado ? `Periodo: ${aplicado.fechaInicio} a ${aplicado.fechaFin}` : 'Resumen histórico completo'}
-        </Text>
+        </AppText>
 
         {/* ── Tarjetas de resumen (horizontales / responsive) ── */}
-        <View style={s.resumenRow}>
+        <XStack flexWrap="wrap" gap={10}>
           {(cargando && !data ? [0, 1, 2, 3] : RESUMEN).map((item: any, i) => (
-            <View key={i} style={s.resumenCard}>
+            <Card key={i} flexGrow={1} flexBasis={150} minWidth={150} gap={0}>
               {data ? (
                 <>
-                  <Text style={s.resumenIcono}>{item.icono}</Text>
-                  <Text style={s.resumenValor} numberOfLines={1} adjustsFontSizeToFit>{item.valor}</Text>
-                  <Text style={s.resumenLabel}>{item.label}</Text>
+                  <YStack
+                    width={36}
+                    height={36}
+                    borderRadius={12}
+                    backgroundColor="$primarySoft"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <Ionicons name={item.icono} size={18} color={colors.primary} />
+                  </YStack>
+                  <AppText fontSize={22} fontWeight="800" tone="primary" marginTop={6} numberOfLines={1} adjustsFontSizeToFit>
+                    {item.valor}
+                  </AppText>
+                  <AppText fontSize={12} tone="muted" marginTop={2} fontWeight="600">{item.label}</AppText>
                 </>
               ) : (
-                <ActivityIndicator color={C.primary} />
+                <Spinner color="$primary" />
               )}
-            </View>
+            </Card>
           ))}
-        </View>
+        </XStack>
 
         {/* ── Filtro de fechas (sobre los gráficos) ── */}
-        <View style={s.card}>
-          <Text style={s.cardTitulo}>Filtro de fechas</Text>
-          <View style={s.filtroRow}>
-            <View style={s.filtroCampo}>
-              <Text style={s.label}>Start Date</Text>
-              <TextInput
-                style={s.input}
+        <Card>
+          <AppText fontSize={15} fontWeight="800">Filtro de fechas</AppText>
+          <XStack gap={10} flexWrap="wrap">
+            <YStack flexGrow={1} flexBasis={130}>
+              <Field
+                label="Start Date"
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor="#B5B5B5"
                 value={startDate}
                 onChangeText={setStartDate}
                 autoCapitalize="none"
               />
-            </View>
-            <View style={s.filtroCampo}>
-              <Text style={s.label}>End Date</Text>
-              <TextInput
-                style={s.input}
+            </YStack>
+            <YStack flexGrow={1} flexBasis={130}>
+              <Field
+                label="End Date"
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor="#B5B5B5"
                 value={endDate}
                 onChangeText={setEndDate}
                 autoCapitalize="none"
               />
-            </View>
-          </View>
-          <View style={s.filtroAcciones}>
-            <TouchableOpacity style={s.btnPrimario} onPress={aplicarFiltro} activeOpacity={0.85}>
-              <Text style={s.btnPrimarioTxt}>Apply Filter</Text>
-            </TouchableOpacity>
+            </YStack>
+          </XStack>
+          <XStack alignItems="center" gap={10}>
+            <AppButton icon="funnel-outline" onPress={aplicarFiltro}>Apply Filter</AppButton>
             {aplicado && (
-              <TouchableOpacity style={s.btnGhost} onPress={limpiarFiltro} activeOpacity={0.7}>
-                <Text style={s.btnGhostTxt}>Limpiar</Text>
-              </TouchableOpacity>
+              <AppButton variant="ghost" onPress={limpiarFiltro}>Limpiar</AppButton>
             )}
-          </View>
-          {error ? <Text style={s.error}>{error}</Text> : null}
-        </View>
+          </XStack>
+          {error ? <AppText fontSize={12} tone="primary" fontWeight="600">{error}</AppText> : null}
+        </Card>
 
         {cargando ? (
-          <ActivityIndicator style={{ marginTop: 30 }} size="large" color={C.primary} />
+          <Loading />
         ) : !data ? null : (
           <>
             {/* ── Gráfico de ventas (cronológico) ── */}
-            <View style={s.card}>
-              <Text style={s.cardTitulo}>Ventas por día</Text>
+            <Card>
+              <AppText fontSize={15} fontWeight="800">Ventas por día</AppText>
               {data.ventasChart.length === 0 ? (
-                <Text style={s.vacio}>Sin ventas completadas en este periodo.</Text>
+                <EmptyState icon="trending-up-outline" mensaje="Sin ventas completadas en este periodo." />
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.grafica}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ alignItems: 'flex-end', gap: 14, paddingVertical: 8, minHeight: 180 }}
+                >
                   {data.ventasChart.map((v) => (
-                    <View key={v.fecha} style={s.barraWrap}>
-                      <Text style={s.barraValor}>{compact(v.total)}</Text>
-                      <View style={[s.barra, { height: Math.max(6, Math.round((v.total / maxVenta) * 130)) }]} />
-                      <Text style={s.barraLabel} numberOfLines={1}>{v.etiqueta}</Text>
-                    </View>
+                    <YStack key={v.fecha} width={48} alignItems="center" justifyContent="flex-end" gap={6}>
+                      <AppText fontSize={10} tone="muted" fontWeight="700">{compact(v.total)}</AppText>
+                      <YStack
+                        width={26}
+                        borderRadius={8}
+                        backgroundColor="$primary"
+                        height={Math.max(6, Math.round((v.total / maxVenta) * 130))}
+                      />
+                      <AppText fontSize={10} tone="muted" numberOfLines={1}>{v.etiqueta}</AppText>
+                    </YStack>
                   ))}
                 </ScrollView>
               )}
-            </View>
+            </Card>
 
             {/* ── Estado de las órdenes (distribución tipo pastel apilada) ── */}
-            <View style={s.card}>
-              <Text style={s.cardTitulo}>Estado de las órdenes</Text>
+            <Card>
+              <AppText fontSize={15} fontWeight="800">Estado de las órdenes</AppText>
               {totalOrdenesEstado === 0 ? (
-                <Text style={s.vacio}>Sin órdenes en este periodo.</Text>
+                <EmptyState icon="pie-chart-outline" mensaje="Sin órdenes en este periodo." />
               ) : (
                 <>
-                  <View style={s.stack}>
+                  <XStack height={22} borderRadius={11} overflow="hidden" backgroundColor="$line">
                     {data.ordenesPorEstado.map((e) => (
-                      <View
+                      <YStack
                         key={e.estado}
-                        style={{
-                          flex: e.cantidad,
-                          backgroundColor: ESTADO_COLOR[e.estado] ?? C.muted,
-                        }}
+                        flex={e.cantidad}
+                        backgroundColor={ESTADO_COLOR[e.estado] ?? colors.muted}
                       />
                     ))}
-                  </View>
-                  <View style={s.leyenda}>
+                  </XStack>
+                  <YStack gap={8}>
                     {data.ordenesPorEstado.map((e) => (
-                      <View key={e.estado} style={s.leyendaItem}>
-                        <View style={[s.punto, { backgroundColor: ESTADO_COLOR[e.estado] ?? C.muted }]} />
-                        <Text style={s.leyendaTxt}>
-                          {e.estado}: <Text style={s.leyendaNum}>{e.cantidad}</Text>{' '}
+                      <XStack key={e.estado} alignItems="center" gap={8}>
+                        <YStack
+                          width={11}
+                          height={11}
+                          borderRadius={6}
+                          backgroundColor={ESTADO_COLOR[e.estado] ?? colors.muted}
+                        />
+                        <AppText fontSize={13}>
+                          {e.estado}: <AppText fontSize={13} fontWeight="800">{e.cantidad}</AppText>{' '}
                           ({Math.round((e.cantidad / totalOrdenesEstado) * 100)}%)
-                        </Text>
-                      </View>
+                        </AppText>
+                      </XStack>
                     ))}
-                  </View>
+                  </YStack>
                 </>
               )}
-            </View>
+            </Card>
 
             {/* ── Productos más vendidos ── */}
-            <View style={s.card}>
-              <Text style={s.cardTitulo}>Productos más vendidos</Text>
+            <Card>
+              <AppText fontSize={15} fontWeight="800">Productos más vendidos</AppText>
               {data.bestSellers.length === 0 ? (
-                <Text style={s.vacio}>Sin productos vendidos en este periodo.</Text>
+                <EmptyState icon="cube-outline" mensaje="Sin productos vendidos en este periodo." />
               ) : data.bestSellers.map((p, i) => (
-                <View key={p.id} style={s.bsFila}>
-                  <Text style={s.bsRank}>{i + 1}</Text>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.bsTop}>
-                      <Text style={s.bsNombre} numberOfLines={1}>{p.nombre}</Text>
-                      <Text style={s.bsCantidad}>{p.cantidad} u.</Text>
-                    </View>
-                    <View style={s.bsTrack}>
-                      <View style={[s.bsFill, { width: `${Math.round((p.cantidad / maxCantidad) * 100)}%` }]} />
-                    </View>
-                    <Text style={s.bsMeta}>{p.categoria} · {money(p.total)}</Text>
-                  </View>
-                </View>
+                <XStack key={p.id} alignItems="center" gap={12}>
+                  <YStack
+                    width={26}
+                    height={26}
+                    borderRadius={13}
+                    backgroundColor="$primarySoft"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <AppText tone="primary" fontWeight="800" fontSize={13}>{i + 1}</AppText>
+                  </YStack>
+                  <YStack flex={1}>
+                    <XStack justifyContent="space-between" gap={8}>
+                      <AppText flex={1} fontSize={13} fontWeight="700" numberOfLines={1}>{p.nombre}</AppText>
+                      <AppText fontSize={12} fontWeight="800">{p.cantidad} u.</AppText>
+                    </XStack>
+                    <YStack height={8} backgroundColor="$line" borderRadius={4} marginTop={5} overflow="hidden">
+                      <YStack
+                        height={8}
+                        backgroundColor="$primary"
+                        borderRadius={4}
+                        width={`${Math.round((p.cantidad / maxCantidad) * 100)}%`}
+                      />
+                    </YStack>
+                    <AppText fontSize={11} tone="muted" marginTop={4}>{p.categoria} · {money(p.total)}</AppText>
+                  </YStack>
+                </XStack>
               ))}
-            </View>
+            </Card>
 
-            <Text style={s.footer}>Acceso exclusivo Master · Yakult Aguascalientes</Text>
+            <AppText textAlign="center" color="#B5B5B5" fontSize={11} marginTop={8}>
+              Acceso exclusivo Master · Yakult Aguascalientes
+            </AppText>
           </>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  pantalla:     { flex: 1, backgroundColor: C.bg },
-  contenido:    { padding: 16, gap: 14, paddingBottom: 40 },
-
-  tituloGrande: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
-  subtitulo:    { fontSize: 13, color: C.muted, marginTop: -6 },
-
-  // Resumen
-  resumenRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  resumenCard:  { flexGrow: 1, flexBasis: 150, minWidth: 150, backgroundColor: C.card, borderRadius: 16, padding: 16, ...sombra },
-  resumenIcono: { fontSize: 20 },
-  resumenValor: { fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 6 },
-  resumenLabel: { fontSize: 12, color: C.muted, marginTop: 2, fontWeight: '600' },
-
-  // Cards genéricas
-  card:         { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 12, ...sombra },
-  cardTitulo:   { fontSize: 15, fontWeight: '800', color: C.ink },
-
-  // Filtro
-  filtroRow:    { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  filtroCampo:  { flexGrow: 1, flexBasis: 130, gap: 6 },
-  label:        { fontSize: 11, color: C.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input:        { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.ink, backgroundColor: '#FAFAFA' },
-  filtroAcciones:{ flexDirection: 'row', alignItems: 'center', gap: 10 },
-  btnPrimario:  { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 22, ...sombra },
-  btnPrimarioTxt:{ color: '#FFF', fontWeight: '800', fontSize: 14 },
-  btnGhost:     { paddingVertical: 12, paddingHorizontal: 12 },
-  btnGhostTxt:  { color: C.muted, fontWeight: '700', fontSize: 13 },
-  error:        { color: C.primary, fontSize: 12, fontWeight: '600' },
-
-  // Gráfico de barras
-  grafica:      { alignItems: 'flex-end', gap: 14, paddingVertical: 8, minHeight: 180 },
-  barraWrap:    { width: 48, alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
-  barraValor:   { fontSize: 10, color: C.muted, fontWeight: '700' },
-  barra:        { width: 26, borderRadius: 8, backgroundColor: C.primary },
-  barraLabel:   { fontSize: 10, color: C.muted },
-
-  // Stack de estados
-  stack:        { flexDirection: 'row', height: 22, borderRadius: 11, overflow: 'hidden', backgroundColor: C.line },
-  leyenda:      { gap: 8 },
-  leyendaItem:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  punto:        { width: 11, height: 11, borderRadius: 6 },
-  leyendaTxt:   { fontSize: 13, color: C.ink },
-  leyendaNum:   { fontWeight: '800' },
-
-  // Best sellers
-  bsFila:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bsRank:       { width: 26, height: 26, borderRadius: 13, backgroundColor: C.primarySoft, color: C.primary, textAlign: 'center', lineHeight: 26, fontWeight: '800', fontSize: 13 },
-  bsTop:        { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  bsNombre:     { flex: 1, fontSize: 13, fontWeight: '700', color: C.ink },
-  bsCantidad:   { fontSize: 12, fontWeight: '800', color: C.ink },
-  bsTrack:      { height: 8, backgroundColor: C.line, borderRadius: 4, marginTop: 5, overflow: 'hidden' },
-  bsFill:       { height: 8, backgroundColor: C.primary, borderRadius: 4 },
-  bsMeta:       { fontSize: 11, color: C.muted, marginTop: 4 },
-
-  vacio:        { textAlign: 'center', color: C.muted, paddingVertical: 16 },
-  footer:       { textAlign: 'center', color: '#B5B5B5', fontSize: 11, marginTop: 8 },
-});

@@ -1,24 +1,18 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { YStack } from 'tamagui';
 import AppHeader from '../../components/AppHeader';
+import { AppText, EmptyState, Screen } from '../../components/ui';
 
 const TITULO = 'Perfil';
 
 export default function PerfilScreen() {
   return (
-    <View style={styles.pantalla}>
+    <Screen>
       <AppHeader titulo="Perfil" />
-      
-      <View style={styles.container}>
-        <Text style={styles.titulo}>{TITULO}</Text>
-        <Text style={styles.sub}>Próximamente</Text>
-      </View>
-    </View>
+
+      <YStack flex={1} alignItems="center" justifyContent="center" gap={4}>
+        <AppText fontSize={24} fontWeight="700">{TITULO}</AppText>
+        <EmptyState icon="id-card-outline" mensaje="Próximamente" />
+      </YStack>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  pantalla:  { flex: 1, backgroundColor: '#F2F2F2' },
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  titulo:    { fontSize: 24, fontWeight: '700', color: '#1A1A1A' },
-  sub:       { fontSize: 14, color: '#9E9E9E', marginTop: 6 },
-});

@@ -8,18 +8,24 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
+    "@tamagui/config": "^1.144.4",
     "@types/react": "~18.2.79",
     "expo": "~51.0.28",
+    "expo-font": "~12.0.10",
+    "expo-print": "~13.0.1",
     "expo-router": "~3.5.23",
+    "expo-sharing": "~12.0.1",
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-native": "0.74.5",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1",
-    "react-native-web": "~0.19.10"
+    "react-native-web": "~0.19.10",
+    "tamagui": "^1.144.4"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

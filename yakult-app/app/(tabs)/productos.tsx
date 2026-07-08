@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput,
-         StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
+import { ScrollView, Alert, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { XStack, YStack } from 'tamagui';
 import { useFocusEffect } from 'expo-router';
 import { ProductosDB } from '../../services/db';
 import { confirmar } from '../../utils/confirmar';
-// 1. Importamos el AppHeader
 import AppHeader from '../../components/AppHeader';
+import { colors } from '../../tamagui.config';
+import { AppButton, AppText, Card, EmptyState, Field, Loading, Screen } from '../../components/ui';
 
 type Producto = { id: number; nombre: string; sku: string; precio: number; stock: number; categoria?: string };
 type Vista    = 'lista' | 'agregar' | 'editar';
@@ -127,101 +129,110 @@ export default function ProductosScreen() {
   ];
 
   if (vista !== 'lista') return (
-    <View style={s.pantalla}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={resetForm}><Text style={s.back}>← Volver</Text></TouchableOpacity>
-        <Text style={s.headerTitulo}>{vista === 'agregar' ? 'Nuevo producto' : 'Editar producto'}</Text>
-      </View>
-      <ScrollView contentContainerStyle={s.form}>
-        {CAMPOS.map(c => (
-          <View key={c.label} style={s.campo}>
-            <Text style={s.campoLabel}>{c.label}</Text>
-            <TextInput
-              style={s.input}
+    <Screen>
+      <XStack
+        backgroundColor="$card"
+        paddingTop={52}
+        paddingBottom={12}
+        paddingHorizontal={16}
+        alignItems="center"
+        justifyContent="space-between"
+        borderBottomWidth={1}
+        borderBottomColor="$line"
+      >
+        <XStack
+          alignItems="center"
+          gap={6}
+          cursor="pointer"
+          pressStyle={{ opacity: 0.6 }}
+          onPress={resetForm}
+        >
+          <Ionicons name="arrow-back" size={16} color={colors.primary} />
+          <AppText fontSize={14} tone="primary" fontWeight="600">Volver</AppText>
+        </XStack>
+        <AppText fontSize={18} fontWeight="700">{vista === 'agregar' ? 'Nuevo producto' : 'Editar producto'}</AppText>
+      </XStack>
+
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Card gap={14} padding={20}>
+          {CAMPOS.map(c => (
+            <Field
+              key={c.label}
+              label={c.label}
               value={c.value}
               onChangeText={c.set}
               placeholder={c.ph}
               keyboardType={c.kb ?? 'default'}
             />
-          </View>
-        ))}
-        <TouchableOpacity style={s.btnPrimario} onPress={guardar} disabled={guardando}>
-          {guardando
-            ? <ActivityIndicator color="#FFF" />
-            : <Text style={s.btnPrimarioTxt}>Guardar en MySQL</Text>
-          }
-        </TouchableOpacity>
+          ))}
+          <AppButton marginTop={8} icon="save-outline" loading={guardando} disabled={guardando} onPress={guardar}>
+            Guardar en MySQL
+          </AppButton>
+        </Card>
       </ScrollView>
-    </View>
+    </Screen>
   );
 
   return (
-    <View style={s.pantalla}>
-      
-      {/* 2. REEMPLAZO DEL HEADER AQUÍ */}
-      <AppHeader 
+    <Screen>
+      <AppHeader
         titulo="Productos"
         derecha={
-          <TouchableOpacity style={s.btnHeader} onPress={() => setVista('agregar')}>
-            <Text style={s.btnHeaderTxt}>+ Agregar</Text>
-          </TouchableOpacity>
+          <AppButton size="sm" icon="add" onPress={() => setVista('agregar')}>
+            Agregar
+          </AppButton>
         }
       />
 
-      {cargando ? <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#E63946" />
+      {cargando ? <Loading />
       : (
-        <ScrollView contentContainerStyle={s.lista}>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
           {productos.length === 0
-            ? <Text style={s.vacio}>Sin productos. Agrega uno.</Text>
+            ? <EmptyState icon="cube-outline" mensaje="Sin productos. Agrega uno." />
             : productos.map(p => (
-              <View key={p.id} style={s.tarjeta}>
-                <View style={s.tarjetaInfo}>
-                  <Text style={s.prodNombre}>{p.nombre}</Text>
-                  <Text style={s.prodSku}>SKU: {p.sku} · ${p.precio}</Text>
-                  <Text style={s.prodCategoria}>{p.categoria || 'General'}</Text>
-                  <Text style={[s.prodStock, p.stock < 50 && { color: '#E63946' }]}>
-                    Stock: {p.stock} {p.stock < 50 ? '⚠️' : ''}
-                  </Text>
-                </View>
-                <View style={s.acciones}>
-                  <TouchableOpacity onPress={() => abrirEditar(p)} style={s.btnEditar}>
-                    <Text>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => eliminar(p)} style={s.btnEliminar}>
-                    <Text>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <Card key={p.id} flexDirection="row" alignItems="center" padding={14}>
+                <YStack flex={1} gap={2}>
+                  <AppText fontSize={14} fontWeight="600">{p.nombre}</AppText>
+                  <AppText fontSize={12} tone="muted">SKU: {p.sku} · ${p.precio}</AppText>
+                  <AppText fontSize={11} color="$infoInk" fontWeight="600">{p.categoria || 'General'}</AppText>
+                  <XStack alignItems="center" gap={4}>
+                    <AppText
+                      fontSize={12}
+                      fontWeight="600"
+                      color={p.stock < 50 ? '$danger' : '$success'}
+                    >
+                      Stock: {p.stock}
+                    </AppText>
+                    {p.stock < 50 && <Ionicons name="warning" size={13} color={colors.warning} />}
+                  </XStack>
+                </YStack>
+                <XStack gap={8}>
+                  <YStack
+                    padding={9}
+                    backgroundColor="$infoSoft"
+                    borderRadius={10}
+                    cursor="pointer"
+                    pressStyle={{ opacity: 0.7 }}
+                    onPress={() => abrirEditar(p)}
+                  >
+                    <Ionicons name="pencil" size={16} color={colors.infoInk} />
+                  </YStack>
+                  <YStack
+                    padding={9}
+                    backgroundColor="$dangerSoft"
+                    borderRadius={10}
+                    cursor="pointer"
+                    pressStyle={{ opacity: 0.7 }}
+                    onPress={() => eliminar(p)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={colors.dangerInk} />
+                  </YStack>
+                </XStack>
+              </Card>
             ))
           }
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  pantalla:      { flex: 1, backgroundColor: '#F2F2F2' },
-  header:        { backgroundColor: '#FFF', paddingTop: 52, paddingBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#EBEBEB' },
-  headerTitulo:  { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  back:          { fontSize: 14, color: '#E63946', marginRight: 12 },
-  btnHeader:     { backgroundColor: '#E63946', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-  btnHeaderTxt:  { color: '#FFF', fontWeight: '600', fontSize: 13 },
-  lista:         { padding: 16, gap: 10 },
-  vacio:         { textAlign: 'center', color: '#9E9E9E', marginTop: 40 },
-  tarjeta:       { backgroundColor: '#FFF', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', elevation: 1 },
-  tarjetaInfo:   { flex: 1 },
-  prodNombre:    { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
-  prodSku:       { fontSize: 12, color: '#9E9E9E', marginTop: 2 },
-  prodCategoria: { fontSize: 11, color: '#1565C0', marginTop: 2, fontWeight: '600' },
-  prodStock:     { fontSize: 12, color: '#4CAF50', marginTop: 2, fontWeight: '600' },
-  acciones:      { flexDirection: 'row', gap: 8 },
-  btnEditar:     { padding: 8, backgroundColor: '#F0F4FF', borderRadius: 8 },
-  btnEliminar:   { padding: 8, backgroundColor: '#FFF0F0', borderRadius: 8 },
-  form:          { padding: 20, gap: 14 },
-  campo:         { gap: 6 },
-  campoLabel:    { fontSize: 13, fontWeight: '600', color: '#1A1A1A' },
-  input:         { backgroundColor: '#FFF', borderRadius: 10, padding: 12, fontSize: 14, borderWidth: 1, borderColor: '#EBEBEB' },
-  btnPrimario:   { backgroundColor: '#E63946', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
-  btnPrimarioTxt:{ color: '#FFF', fontWeight: '700', fontSize: 15 },
-});
