@@ -16,6 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 const router = require('express').Router();
 const db     = require('../db');
+const { requiereAuth } = require('../authToken');
 const {
   MercadoPagoConfig, Preference, Payment,
   WebhookSignatureValidator,
@@ -93,10 +94,26 @@ async function aplicarPago(payment) {
   const orden = await cargarOrden(ordenId);
   if (!orden) return null;
 
-  const estadoNuevo = mapEstado(payment.status);
+  let estadoNuevo   = mapEstado(payment.status);
   const paymentId   = String(payment.id);
   const metodo      = payment.payment_method_id || payment.payment_type_id || null;
-  const monto       = Number(payment.transaction_amount) || Number(orden.total);
+  const montoMP     = Number(payment.transaction_amount);
+  const monto       = Number.isFinite(montoMP) ? montoMP : Number(orden.total);
+
+  // ── Validación estricta de monto (Sprint 9 · PoC seguridad) ──
+  // Un pago "approved" solo se acepta si lo que MP cobró coincide exactamente
+  // con el total de la orden en BD (comparado en centavos para evitar ruido
+  // de punto flotante). Si no coincide, se registra como Rechazado y la orden
+  // NUNCA se marca como pagada; el detalle completo queda en raw_json.
+  const montoCoincide =
+    Number.isFinite(montoMP) &&
+    Math.round(montoMP * 100) === Math.round(Number(orden.total) * 100);
+  if (estadoNuevo === 'Aprobado' && !montoCoincide) {
+    console.warn(
+      `[pagos] ⚠️ Monto no coincide en orden #${ordenId}: MP cobró $${montoMP} pero la orden vale $${orden.total}. Pago ${paymentId} marcado como Rechazado.`
+    );
+    estadoNuevo = 'Rechazado';
+  }
 
   // Upsert del intento por mp_payment_id.
   const [[existente]] = await db.query(
@@ -160,7 +177,7 @@ async function aplicarPago(payment) {
 }
 
 // ── POST /api/pagos/preferencia — crea el link de cobro de una orden ────────
-router.post('/preferencia', manejar(async (req, res) => {
+router.post('/preferencia', requiereAuth, manejar(async (req, res) => {
   const ordenId = Number(req.body?.ordenId);
   if (!ordenId) return res.status(400).json({ error: 'ordenId es requerido.' });
 
@@ -250,7 +267,7 @@ router.post('/webhook', manejar(async (req, res) => {
 }));
 
 // ── GET /api/pagos/orden/:id/verificar — fallback por polling (local) ───────
-router.get('/orden/:id/verificar', manejar(async (req, res) => {
+router.get('/orden/:id/verificar', requiereAuth, manejar(async (req, res) => {
   const ordenId = Number(req.params.id);
   const orden = await cargarOrden(ordenId);
   if (!orden) return res.status(404).json({ error: `La orden #${ordenId} no existe.` });
@@ -281,7 +298,7 @@ router.get('/orden/:id/verificar', manejar(async (req, res) => {
 }));
 
 // ── GET /api/pagos — cobranza para la pantalla "Ventas" ─────────────────────
-router.get('/', manejar(async (_req, res) => {
+router.get('/', requiereAuth, manejar(async (_req, res) => {
   const [pagos] = await db.query(`
     SELECT pg.id, pg.orden_id AS ordenId, c.nombre AS clienteNombre,
            pg.estado, pg.monto, pg.metodo, pg.mp_payment_id AS mpPaymentId,
@@ -354,3 +371,5 @@ router.get('/retorno/:resultado', manejar(async (req, res) => {
 }));
 
 module.exports = router;
+// Exportado para poder probar la validación de montos sin pasar por MP.
+module.exports.aplicarPago = aplicarPago;

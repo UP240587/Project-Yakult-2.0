@@ -32,4 +32,21 @@ function verificarToken(req) {
   }
 }
 
-module.exports = { crearToken, verificarToken };
+// Middleware: exige un JWT válido y deja la sesión en req.usuario.
+function requiereAuth(req, res, next) {
+  try {
+    req.usuario = verificarToken(req);
+    next();
+  } catch (err) {
+    res.status(err.statusCode || 401).json({ error: err.message });
+  }
+}
+
+// Middleware: además del token, exige rol Master (usar después de requiereAuth).
+function soloMaster(req, res, next) {
+  if (req.usuario?.rol !== 'Master')
+    return res.status(403).json({ error: 'Se requiere rol Master.' });
+  next();
+}
+
+module.exports = { crearToken, verificarToken, requiereAuth, soloMaster };

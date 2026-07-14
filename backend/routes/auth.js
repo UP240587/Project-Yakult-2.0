@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 const bcrypt = require('bcryptjs');
-const { crearToken } = require('../authToken');
+const { crearToken, requiereAuth, soloMaster } = require('../authToken');
 
 // ── Registro ────────────────────────────────────────────
 router.post('/registro', async (req, res) => {
@@ -46,6 +46,9 @@ router.post('/login', async (req, res) => {
   const usuario = { id: u.id, nombre: u.nombre, correo: u.correo, rol: u.rol };
   res.json({ usuario, token: crearToken(usuario) });
 });
+
+// ── Administración de usuarios: requiere JWT + rol Master ──
+router.use('/usuarios', requiereAuth, soloMaster);
 
 // ── Listar usuarios (solo Masters) ─────────────────────
 router.get('/usuarios', async (req, res) => {
